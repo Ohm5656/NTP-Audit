@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Filter,
   FolderUp,
+  History as HistoryIcon,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -50,6 +51,7 @@ import {
 import { toSatang } from "@/lib/money";
 import type { AppUser } from "@/lib/auth";
 import { EmployeeAnnualTable, MonthlyMonthFolders, MonthlyPayrollTable, MonthlyYearFolders } from "@/components/payroll-navigation";
+import { HistoricalImport } from "@/components/historical-import";
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
 
@@ -61,6 +63,7 @@ const mainNav: NavItem[] = [
   { href: "/salary", label: "ปรับเงินเดือน", icon: SlidersHorizontal },
 ];
 const systemNav: NavItem[] = [
+  { href: "/historical", label: "\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07", icon: HistoryIcon },
   { href: "/import", label: "นำเข้าข้อมูล", icon: FolderUp },
   { href: "/imports", label: "ประวัตินำเข้า", icon: FileClock },
   { href: "/settings", label: "ตั้งค่า", icon: Settings2 },
@@ -277,6 +280,7 @@ export default function Workspace({ user }: { user?: AppUser }) {
     content = <MonthlyMonthFolders year={Number(pathname.split("/")[2]) - 543} />;
   else if (/^\/monthly\/\d{4}\/\d{1,2}$/.test(pathname))
     content = <MonthlyPayrollTable year={Number(pathname.split("/")[2]) - 543} month={Number(pathname.split("/")[3])} />;
+  else if (pathname === "/historical") content = <HistoricalImport />;
   else if (pathname === "/import") content = <LiveImportUpload />;
   else if (pathname === "/import/preview") content = <LiveImportPreview />;
   else if (pathname === "/import/mapping") content = <LiveImportMapping />;
@@ -307,7 +311,7 @@ export default function Workspace({ user }: { user?: AppUser }) {
       />
     );
 
-  if (user?.role === "viewer" && (pathname === "/import" || pathname.startsWith("/import/") || pathname === "/leave" || pathname === "/salary" || pathname === "/settings"))
+  if (user?.role === "viewer" && (pathname === "/historical" || pathname === "/import" || pathname.startsWith("/import/") || pathname === "/leave" || pathname === "/salary" || pathname === "/settings"))
     content = <PageHeading title="ไม่มีสิทธิ์แก้ไขข้อมูล" description="บัญชีผู้ดูรายงานใช้สำหรับดูภาพรวมและรายงาน" action={<Link className="button button-primary" href="/">กลับภาพรวม</Link>} />;
 
   return (

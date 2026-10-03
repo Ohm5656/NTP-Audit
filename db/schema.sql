@@ -211,3 +211,16 @@ CREATE OR REPLACE VIEW active_payroll_entries AS
 SELECT e.*,p.year,p.month,p.payment_date,p.company_id
 FROM payroll_entries e
 JOIN payroll_periods p ON p.id=e.period_id AND p.active_import_id=e.import_id;
+
+CREATE TABLE IF NOT EXISTS historical_imports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL REFERENCES companies(id),
+  original_filename text NOT NULL,
+  storage_key text NOT NULL UNIQUE,
+  sha256 text NOT NULL,
+  imported_by uuid REFERENCES users(id),
+  imported_at timestamptz NOT NULL DEFAULT now(),
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  UNIQUE(company_id, sha256)
+);
+CREATE INDEX IF NOT EXISTS historical_imports_company_time_idx ON historical_imports(company_id, imported_at DESC);
