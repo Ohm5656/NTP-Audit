@@ -41,12 +41,19 @@ export async function importHistoricalAnnual({ companyId, userId, filename, buff
           const key = `${source.year}-${payroll.month}`; let periodImport = periodImports.get(key);
           if (!periodImport) {
             const period = await client.query<{ id: string; active_import_id: string | null }>("INSERT INTO payroll_periods(company_id,year,month) VALUES($1,$2,$3) ON CONFLICT(company_id,year,month) DO UPDATE SET year=EXCLUDED.year RETURNING id,active_import_id", [companyId, source.year, payroll.month]);
-            const version = await client.query<{ version: number }>("SELECT COALESCE(MAX(version),0)::int + 1 AS version FROM imports WHERE period_id=$1", [period.rows[0].id]);
-            if (period.rows[0].active_import_id) await client.query("UPDATE imports SET status='replaced' WHERE id=$1", [period.rows[0].active_import_id]);
-            const imported = await client.query<{ id: string }>("INSERT INTO imports(company_id,period_id,version,original_filename,storage_key,sha256,source_sheet,status,imported_by,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,'active',$8,$9) RETURNING id", [companyId, period.rows[0].id, version.rows[0].version, filename, storageKey, sha256, "Annual historical import", userId, JSON.stringify({ historicalImportId: history.rows[0].id })]);
-            await client.query("UPDATE payroll_periods SET active_import_id=$2 WHERE id=$1", [period.rows[0].id, imported.rows[0].id]);
-            periodImport = { periodId: period.rows[0].id, importId: imported.rows[0].id }; periodImports.set(key, periodImport);
+            if (period.rows[0].active_import_id) {
+              // A monthly import is the source of truth for an existing payroll period.
+              // Historical annual data remains stored as provenance but must not replace it.
+              periodImport = { periodId: period.rows[0].id, importId: "" };
+              periodImports.set(key, periodImport);
+            } else {
+              const version = await client.query<{ version: number }>("SELECT COALESCE(MAX(version),0)::int + 1 AS version FROM imports WHERE period_id=$1", [period.rows[0].id]);
+              const imported = await client.query<{ id: string }>("INSERT INTO imports(company_id,period_id,version,original_filename,storage_key,sha256,source_sheet,status,imported_by,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,'active',$8,$9) RETURNING id", [companyId, period.rows[0].id, version.rows[0].version, filename, storageKey, sha256, "Annual historical import", userId, JSON.stringify({ historicalImportId: history.rows[0].id })]);
+              await client.query("UPDATE payroll_periods SET active_import_id=$2 WHERE id=$1", [period.rows[0].id, imported.rows[0].id]);
+              periodImport = { periodId: period.rows[0].id, importId: imported.rows[0].id }; periodImports.set(key, periodImport);
+            }
           }
+          if (!periodImport.importId) continue;
           const inserted = await client.query<{ id: string }>("INSERT INTO payroll_entries(import_id,period_id,employee_id,source_row,gross,deductions,net,warnings) VALUES($1,$2,$3,NULL,$4,$5,$6,'[]') ON CONFLICT(import_id,employee_id) DO NOTHING RETURNING id", [periodImport.importId, periodImport.periodId, employee.id, payroll.gross / 100, payroll.deductions / 100, payroll.net / 100]);
           if (!inserted.rowCount) continue;
           for (const item of payroll.items) { const typeId = await ensureType(item); await client.query("INSERT INTO payroll_items(entry_id,item_type_id,amount,original_amount,source_header,source_type) VALUES($1,$2,$3,$3,$4,'imported')", [inserted.rows[0].id, typeId, item.amount / 100, item.label]); }

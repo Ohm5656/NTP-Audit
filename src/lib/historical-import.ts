@@ -62,9 +62,12 @@ function headerItem(header: string): HistoricalPayrollItem | null {
   return { code, label: header, kind, amount: 0 };
 }
 function nameForSheet(sheet: ExcelJS.Worksheet): string | null {
+  const adjustmentRow = Array.from({ length: sheet.rowCount }, (_, index) => index + 1).find((row) => text(sheet.getCell(row, 1).value).includes("รายละเอียดการปรับเงินเดือน"));
+  const adjustmentTitle = adjustmentRow ? text(sheet.getCell(adjustmentRow, 1).value) : "";
+  const fromAdjustment = adjustmentTitle.replace(/^.*?พนักงาน\s*/, "").trim();
   const title = text(sheet.getCell(1, 1).value);
-  const named = /รายงานค่าจ้าง\s*(.*?)\s*ปี\s*(?:25\d{2}|20\d{2})/.exec(title)?.[1]?.trim();
-  return named || (sheet.name.trim() && !/^sheet\d*$/i.test(sheet.name) ? sheet.name.trim() : null);
+  const named = /รายงาน(?:ค่าจ้าง|ค่าแรง)?\s*(.*?)\s*ปี\s*(?:25\d{2}|20\d{2})/.exec(title)?.[1]?.trim();
+  return fromAdjustment || named || (sheet.name.trim() && !/^sheet\d*$/i.test(sheet.name) ? sheet.name.trim() : null);
 }
 function yearForSheet(sheet: ExcelJS.Worksheet): number | null {
   const title = text(sheet.getCell(1, 1).value);
@@ -74,10 +77,12 @@ function yearForSheet(sheet: ExcelJS.Worksheet): number | null {
 
 export async function parseHistoricalWorkbook(filePath: string): Promise<HistoricalParse> {
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile(filePath);
+  const eligibleSheets = book.worksheets.filter((sheet) => text(sheet.getCell(2, 1).value) === "เดือน" && text(sheet.getCell(2, 2).value).includes("เงินเดือน") && sheet.columnCount >= 14);
+  const fallbackYear = eligibleSheets.map(yearForSheet).find((year): year is number => year !== null);
+  if (!fallbackYear) throw new Error("????????? Annual Excel");
   const employees: HistoricalEmployee[] = [];
-  for (const sheet of book.worksheets) {
-    if (text(sheet.getCell(2, 1).value) !== "เดือน" || !text(sheet.getCell(2, 2).value).includes("เงินเดือน")) continue;
-    const name = nameForSheet(sheet); const year = yearForSheet(sheet); if (!name || !year || sheet.columnCount < 14) continue;
+  for (const sheet of eligibleSheets) {
+    const name = nameForSheet(sheet); const year = yearForSheet(sheet) || fallbackYear; if (!name) continue;
     const headers = new Map<number, string>(); for (let col = 2; col <= sheet.columnCount; col++) { const header = text(sheet.getCell(2, col).value); if (header) headers.set(col, header); }
     const startRow = Array.from({ length: sheet.rowCount }, (_, index) => index + 1).find((row) => text(sheet.getCell(row, 1).value).includes("วันที่เริ่มงาน"));
     const adjustmentTitle = Array.from({ length: sheet.rowCount }, (_, index) => index + 1).find((row) => text(sheet.getCell(row, 1).value).includes("รายละเอียดการปรับเงินเดือน"));

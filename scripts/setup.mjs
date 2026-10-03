@@ -34,9 +34,10 @@ try {
   await client.connect();
   await client.query("BEGIN");
   await client.query(fs.readFileSync(path.resolve("db/schema.sql"), "utf8"));
-  let company = await client.query("SELECT id FROM companies ORDER BY created_at LIMIT 1");
+  let company = await client.query("SELECT id,name FROM companies ORDER BY created_at LIMIT 1");
   if (!company.rowCount) company = await client.query("INSERT INTO companies(name) VALUES($1) RETURNING id", [process.env.COMPANY_NAME || "NTP Electric and Engineering Co., Ltd."]);
   const companyId = company.rows[0].id;
+  if (["\u0e1a\u0e23\u0e34\u0e29\u0e31\u0e17\u0e15\u0e31\u0e27\u0e2d\u0e22\u0e48\u0e32\u0e07", "\u0e1a\u0e23\u0e34\u0e29\u0e31\u0e17\u0e02\u0e2d\u0e07\u0e09\u0e31\u0e19"].includes(company.rows[0].name)) await client.query("UPDATE companies SET name=$2 WHERE id=$1", [companyId, "NTP Electric and Engineering Co., Ltd."]);
   for (const [code, label, kind, aliases] of seedTypes) {
     await client.query("INSERT INTO payroll_item_types(company_id,code,label,kind,aliases) VALUES($1,$2,$3,$4,$5) ON CONFLICT(company_id,code) DO NOTHING", [companyId, code, label, kind, aliases]);
   }

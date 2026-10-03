@@ -58,7 +58,7 @@ type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
 const mainNav: NavItem[] = [
   { href: "/", label: "ภาพรวม", icon: LayoutDashboard },
   { href: "/monthly", label: "ข้อมูลรายเดือน", icon: Wallet },
-  { href: "/employees", label: "พนักงาน", icon: Users },
+  { href: "/employees", label: "รายได้พนักงาน (รายปี)", icon: Users },
   { href: "/leave", label: "วันลา", icon: Clock3 },
   { href: "/salary", label: "ปรับเงินเดือน", icon: SlidersHorizontal },
 ];
@@ -823,9 +823,7 @@ function MonthlyList({
                     value={imported ? sum(p.rows, "deductions") : null}
                   />
                   <MoneyCell value={imported ? sum(p.rows, "net") : null} />
-                  <td className="row-arrow">
-                    <ChevronRight size={16} />
-                  </td>
+                  <td className="row-arrow"><ChevronRight size={16} /></td>
                 </tr>
               );
             })}
@@ -1582,9 +1580,7 @@ function EmployeesPage({
                         : "ไม่ปฏิบัติงาน"}
                   </Status>
                 </td>
-                <td className="row-arrow">
-                  <ChevronRight size={16} />
-                </td>
+                <td className="row-arrow"><Link href={`/employees/${employee.id}`} aria-label={`Open ${employee.name}`} className="row-arrow-link"><ChevronRight size={16} /></Link></td>
               </tr>
             ))}
           </tbody>
@@ -1694,7 +1690,7 @@ function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnua
   const { employees, entries, payrollForMonth, leaveRecords, salaryAdjustments } =
     usePayrollData();
   const employee = employees.find((item) => item.id === id);
-  const [tab, setTab] = useState(selectedAnnualYear > 1900 ? "annual" : "overview");
+  const [tab, setTab] = useState(selectedAnnualYear > 1900 || entries.some((entry) => entry.employeeDbId === employee?.dbId) ? "annual" : "overview");
   const monthly = entries
     .filter((entry) => entry.employeeDbId === employee?.dbId)
     .sort((a, b) => b.year - a.year || b.month - a.month)[0];
