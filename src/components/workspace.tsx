@@ -1382,10 +1382,11 @@ function EmployeesPage({
   search: string;
   setSearch: (value: string) => void;
 }) {
-  const { employees, refresh, user } = usePayrollData();
+  const { employees, entries, refresh, user } = usePayrollData();
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState("");
+  const latestAnnualYear = Array.from(new Set(entries.map((entry) => entry.year))).sort((a, b) => b - a)[0];
   const filtered = employees.filter(
     (employee) =>
       (filter === "all" || employee.type === filter) &&
@@ -1398,12 +1399,7 @@ function EmployeesPage({
       <PageHeading
         title="พนักงาน"
         description="ข้อมูลบุคลากรและประวัติเงินเดือน"
-        action={
-          <Link className="button button-primary" href="/import">
-            <Plus size={17} />
-            นำเข้า Payroll
-          </Link>
-        }
+        action={<div className="heading-actions">{latestAnnualYear && <a className="button button-secondary" href={`/api/reports/annual?year=${latestAnnualYear}`}><ArrowDownToLine size={17} />ดาวน์โหลด Annual Excel {latestAnnualYear + 543}</a>}<Link className="button button-primary" href="/import"><Plus size={17} />นำเข้า Payroll</Link></div>}
       />
       <div className="toolbar">
         <div className="search-box">
