@@ -4,9 +4,13 @@ CREATE EXTENSION IF NOT EXISTS citext;
 CREATE TABLE IF NOT EXISTS companies (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
+  address text,
+  tax_id text,
   timezone text NOT NULL DEFAULT 'Asia/Bangkok',
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS address text;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_id text;
 
 CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

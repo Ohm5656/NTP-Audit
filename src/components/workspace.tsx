@@ -306,6 +306,9 @@ export default function Workspace({ user }: { user?: AppUser }) {
       />
     );
 
+  if (user?.role === "viewer" && (pathname === "/import" || pathname.startsWith("/import/") || pathname === "/leave" || pathname === "/salary" || pathname === "/settings"))
+    content = <PageHeading title="ไม่มีสิทธิ์แก้ไขข้อมูล" description="บัญชีผู้ดูรายงานใช้สำหรับดูภาพรวมและรายงาน" action={<Link className="button button-primary" href="/">กลับภาพรวม</Link>} />;
+
   return (
     <DataProvider year={Number(year) - 543}>
       <ImportWizardProvider>
@@ -328,7 +331,7 @@ export default function Workspace({ user }: { user?: AppUser }) {
             <CompanySwitch />
             <nav aria-label="เมนูหลัก">
               <p className="nav-caption">งานประจำ</p>
-              {mainNav.map((item) => (
+              {mainNav.filter((item) => user?.role !== "viewer" || !["/leave", "/salary"].includes(item.href)).map((item) => (
                 <NavLink
                   key={item.href}
                   item={item}
@@ -337,7 +340,7 @@ export default function Workspace({ user }: { user?: AppUser }) {
                 />
               ))}
               <p className="nav-caption nav-caption-second">จัดการระบบ</p>
-              {systemNav.map((item) => (
+              {systemNav.filter((item) => user?.role !== "viewer" || item.href === "/imports").map((item) => (
                 <NavLink
                   key={item.href}
                   item={item}
@@ -510,7 +513,7 @@ function Dashboard({
   year: string;
   setYear: (value: string) => void;
 }) {
-  const { payrollForMonth, annualTotal, coverage, employees, periods } =
+  const { payrollForMonth, annualTotal, coverage, employees, periods, user } =
     usePayrollData();
   const latest = periods
     .filter(
@@ -520,7 +523,7 @@ function Dashboard({
   const rows = latest ? payrollForMonth(latest.month) : [];
   const latestHref = latest
     ? `/monthly/${year}/${String(latest.month).padStart(2, "0")}`
-    : "/import";
+    : user?.role === "viewer" ? "/reports/company" : "/import";
   return (
     <>
       <PageHeading
@@ -529,10 +532,10 @@ function Dashboard({
         action={
           <>
             <SelectYear year={year} onChange={setYear} />
-            <Link className="button button-primary" href="/import">
+            {user?.role !== "viewer" && <Link className="button button-primary" href="/import">
               <Plus size={17} />
               นำเข้า Excel
-            </Link>
+            </Link>}
           </>
         }
       />
@@ -566,7 +569,7 @@ function Dashboard({
                     p.activeImportId,
                 )
                   ? `/monthly/${year}/${String(index + 1).padStart(2, "0")}`
-                  : "/import"
+                  : user?.role === "viewer" ? "/reports/company" : "/import"
               }
               className={`coverage-month ${periods.some((p) => p.year === Number(year) - 543 && p.month === index + 1 && p.activeImportId) ? "completed" : "missing"}`}
               key={name}
@@ -681,7 +684,7 @@ function Dashboard({
                 </strong>
                 <small>เมื่อปิดงวดแล้วให้นำเข้าไฟล์ Excel</small>
               </div>
-              <Link href="/import">นำเข้า</Link>
+              {user?.role !== "viewer" && <Link href="/import">นำเข้า</Link>}
             </div>
             <div className="task-item">
               <span className="task-icon green">
@@ -707,7 +710,7 @@ function Dashboard({
         title="แนวโน้มเงินจ่ายสุทธิ"
         action={<span className="section-subtle">มกราคม – ธันวาคม {year}</span>}
       >
-        <div
+        {coverage === 0 ? <div className="chart-empty"><FileSpreadsheet size={23} /><strong>ยังไม่มีข้อมูลสำหรับแผนภูมิ</strong><span>ยอดแต่ละเดือนจะแสดงหลังบันทึกงวดเงินเดือน</span></div> : <div
           className="bar-chart"
           role="img"
           aria-label="แผนภูมิเงินจ่ายสุทธิ 12 เดือน"
@@ -726,7 +729,7 @@ function Dashboard({
               <span>{label}</span>
             </div>
           ))}
-        </div>
+        </div>}
       </Section>
     </>
   );
@@ -1242,39 +1245,10 @@ function AnnualEmployeeReport({
           }
         >
           <div className="leave-stats">
-            <div>
-              <strong>
-                {leaveRecords
-                  .filter(
-                    (item) =>
-                      item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)) && item.type === "ลากิจ",
-                  )
-                  .reduce((a, b) => a + b.days, 0)}
-              </strong>
-              <span>ลากิจ</span>
-            </div>
-            <div>
-              <strong>
-                {leaveRecords
-                  .filter(
-                    (item) =>
-                      item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)) && item.type === "พักร้อน",
-                  )
-                  .reduce((a, b) => a + b.days, 0)}
-              </strong>
-              <span>พักร้อน</span>
-            </div>
-            <div>
-              <strong>
-                {leaveRecords
-                  .filter(
-                    (item) =>
-                      item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)) && item.type === "ลาป่วย",
-                  )
-                  .reduce((a, b) => a + b.days, 0)}
-              </strong>
-              <span>ลาป่วย</span>
-            </div>
+            {["ลากิจ", "พักร้อน", "ลาป่วย", "ลาไม่รับค่าจ้าง", "ขาดงาน"].map((type) => <div key={type}>
+              <strong>{leaveRecords.filter((item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)) && item.type === type).reduce((total, item) => total + item.days, 0)}</strong>
+              <span>{type}</span>
+            </div>)}
           </div>
           <div className="compact-list">
             {leaveRecords
@@ -1308,7 +1282,7 @@ function AnnualEmployeeReport({
                   <span>
                     {thaiDate(item.date)} · {item.reason}
                   </span>
-                  <strong>฿{money(item.newSalary)}</strong>
+                  <strong>฿{money(item.oldSalary)} → ฿{money(item.newSalary)} <small>({item.oldSalary ? (((item.newSalary - item.oldSalary) / item.oldSalary) * 100).toFixed(1) : "—"}%)</small></strong>
                 </div>
               ))}
             {!salaryAdjustments.some(
@@ -1328,9 +1302,15 @@ function CompanyReport({
   year: string;
   setYear: (value: string) => void;
 }) {
-  const { payrollForMonth, annualTotal, coverage } = usePayrollData();
+  const { payrollForMonth, annualTotal, coverage, entries } = usePayrollData();
   const [showExtra, setShowExtra] = useState(false);
   const imported = coverage > 0;
+  const currentMonths = new Set(entries.filter((entry) => entry.year === Number(year) - 543).map((entry) => entry.month));
+  const previousYearEntries = entries.filter((entry) => entry.year === Number(year) - 544);
+  const previousNet = previousYearEntries.reduce((total, entry) => total + entry.net, 0);
+  const priorSameMonths = previousYearEntries.filter((entry) => currentMonths.has(entry.month));
+  const comparablePreviousNet = priorSameMonths.reduce((total, entry) => total + entry.net, 0);
+  const comparableCurrentNet = entries.filter((entry) => entry.year === Number(year) - 543 && previousYearEntries.some((prior) => prior.month === entry.month)).reduce((total, entry) => total + entry.net, 0);
   const totals = Array.from({ length: 12 }, (_, index) =>
     payrollForMonth(index + 1),
   );
@@ -1362,6 +1342,10 @@ function CompanyReport({
           <span>ข้อมูลครบ</span>
           <strong>{coverage} / 12 เดือน</strong>
         </div>
+      </div>
+      <div className="year-comparison">
+        <div><span>ปีก่อน {Number(year) - 1}</span><strong>{previousYearEntries.length ? `฿${money(previousNet)}` : "—"}</strong></div>
+        <div><span>เทียบเดือนที่มีข้อมูลทั้งสองปี</span><strong>{comparablePreviousNet !== 0 ? `${((comparableCurrentNet - comparablePreviousNet) / comparablePreviousNet * 100).toFixed(1)}%` : "—"}</strong></div>
       </div>
       <Section
         title="สรุปรายเดือน"
@@ -2302,13 +2286,13 @@ function SalaryPage() {
 }
 
 function ImportHistory() {
-  const { imports } = usePayrollData();
+  const { imports, user } = usePayrollData();
   return (
     <>
       <PageHeading
         title="ประวัติการนำเข้า"
         description="ตรวจสอบงวด ไฟล์ต้นฉบับ และเวอร์ชันข้อมูล"
-        action={
+        action={user?.role !== "viewer" &&
           <Link href="/import" className="button button-primary">
             <Plus size={17} />
             นำเข้า Excel
@@ -2381,9 +2365,122 @@ function ImportHistory() {
   );
 }
 
+type ManagedUser = { id: string; email: string; role: "admin" | "payroll" | "viewer"; active: boolean; created_at: string };
+
+function UserManagement() {
+  const { user } = usePayrollData();
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<ManagedUser["role"]>("payroll");
+  const [resetTarget, setResetTarget] = useState<ManagedUser | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const reload = async () => {
+    const response = await fetch("/api/users", { cache: "no-store" });
+    if (!response.ok) throw new Error("อ่านบัญชีผู้ใช้ไม่สำเร็จ");
+    setUsers((await response.json()).users);
+  };
+  useEffect(() => { reload().catch((cause) => setError(cause.message)); }, []);
+  const update = async (id: string, changes: Record<string, unknown>) => {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...changes }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "บันทึกบัญชีไม่สำเร็จ");
+      await reload(); setMessage("บันทึกบัญชีแล้ว");
+      return true;
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "บันทึกบัญชีไม่สำเร็จ"); return false; }
+    finally { setBusy(false); }
+  };
+  return <>
+    <Section title="บัญชีผู้ใช้">
+      <div className="table-scroll"><table><thead><tr><th>อีเมล</th><th>บทบาท</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>
+        {users.map((person) => <tr key={person.id}>
+          <td>{person.email}{person.id === user?.id ? " · คุณ" : ""}</td>
+          <td><select aria-label={`บทบาท ${person.email}`} value={person.role} disabled={busy || person.id === user?.id} onChange={(event) => update(person.id, { role: event.target.value })}><option value="admin">Admin</option><option value="payroll">บัญชี / เงินเดือน</option><option value="viewer">ผู้ดูรายงาน</option></select></td>
+          <td><Status tone={person.active ? "green" : "gray"}>{person.active ? "ใช้งาน" : "ปิดใช้งาน"}</Status></td>
+          <td><button className="text-link" disabled={busy || person.id === user?.id} onClick={() => update(person.id, { active: !person.active })}>{person.active ? "ปิดบัญชี" : "เปิดบัญชี"}</button> <button className="text-link" disabled={busy} onClick={() => { setResetTarget(person); setResetPassword(""); }}>ตั้งรหัสใหม่</button></td>
+        </tr>)}
+      </tbody></table></div>
+      {resetTarget && <form className="settings-form settings-reset" onSubmit={async (event) => { event.preventDefault(); if (await update(resetTarget.id, { password: resetPassword })) { setResetTarget(null); setResetPassword(""); } }}>
+        <label>รหัสผ่านใหม่สำหรับ {resetTarget.email}<input type="password" minLength={12} maxLength={200} value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} required autoComplete="new-password" /></label>
+        <button className="button button-primary" disabled={busy}>ตั้งรหัสผ่าน</button>
+        <button type="button" className="button button-secondary" onClick={() => setResetTarget(null)}>ยกเลิก</button>
+      </form>}
+    </Section>
+    <Section title="เพิ่มผู้ใช้">
+      <form className="settings-form" onSubmit={async (event) => {
+        event.preventDefault(); setBusy(true); setError(""); setMessage("");
+        try {
+          const response = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, role }) });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "เพิ่มผู้ใช้ไม่สำเร็จ");
+          setEmail(""); setPassword(""); await reload(); setMessage("เพิ่มผู้ใช้แล้ว");
+        } catch (cause) { setError(cause instanceof Error ? cause.message : "เพิ่มผู้ใช้ไม่สำเร็จ"); }
+        finally { setBusy(false); }
+      }}>
+        <label>อีเมล<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
+        <label>รหัสผ่านเริ่มต้น<input type="password" minLength={12} value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="new-password" /></label>
+        <label>บทบาท<select value={role} onChange={(event) => setRole(event.target.value as ManagedUser["role"])}><option value="payroll">บัญชี / เงินเดือน</option><option value="viewer">ผู้ดูรายงาน</option><option value="admin">Admin</option></select></label>
+        <button className="button button-primary" disabled={busy}>เพิ่มผู้ใช้</button>
+      </form>
+      {error && <p className="form-error" role="alert">{error}</p>}{message && <p className="green-text">{message}</p>}
+    </Section>
+  </>;
+}
+
+function CompanySettings() {
+  const { company, refresh, user } = usePayrollData();
+  const [name, setName] = useState(company?.name || "");
+  const [address, setAddress] = useState(company?.address || "");
+  const [taxId, setTaxId] = useState(company?.tax_id || "");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  return <Section title="ข้อมูลบริษัท">
+    <form className="settings-form" onSubmit={async (event) => {
+      event.preventDefault(); setBusy(true); setError(""); setMessage("");
+      try {
+        const response = await fetch("/api/settings/company", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, address, taxId }) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "บันทึกข้อมูลบริษัทไม่สำเร็จ");
+        await refresh(); setMessage("บันทึกข้อมูลบริษัทแล้ว");
+      } catch (cause) { setError(cause instanceof Error ? cause.message : "บันทึกข้อมูลบริษัทไม่สำเร็จ"); }
+      finally { setBusy(false); }
+    }}>
+      <label>ชื่อบริษัท<input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} maxLength={160} disabled={user?.role !== "admin"} /></label>
+      <label>เลขประจำตัวผู้เสียภาษี<input value={taxId} onChange={(event) => setTaxId(event.target.value.replace(/\D/g, "").slice(0, 13))} inputMode="numeric" placeholder="13 หลัก" disabled={user?.role !== "admin"} /></label>
+      <label className="settings-wide">ที่อยู่บริษัท<textarea value={address} onChange={(event) => setAddress(event.target.value)} maxLength={500} rows={3} disabled={user?.role !== "admin"} /></label>
+      {user?.role === "admin" && <button className="button button-primary" disabled={busy}>บันทึกข้อมูล</button>}
+    </form>
+    {error && <p className="form-error" role="alert">{error}</p>}{message && <p className="green-text">{message}</p>}
+    <p className="section-subtle">สกุลเงิน: บาท (THB) · เขตเวลา: {company?.timezone || "Asia/Bangkok"}</p>
+  </Section>;
+}
+
 function SettingsPage() {
-  const { itemTypes, company } = usePayrollData();
+  const { itemTypes, importMappings, user, refresh } = usePayrollData();
   const [tab, setTab] = useState("mapping");
+  const [newItemLabel, setNewItemLabel] = useState("");
+  const [newItemKind, setNewItemKind] = useState<"income" | "deduction">("income");
+  const [editItemId, setEditItemId] = useState<string | null>(null);
+  const [editItemLabel, setEditItemLabel] = useState("");
+  const [itemError, setItemError] = useState("");
+  const [itemMessage, setItemMessage] = useState("");
+  const [itemBusy, setItemBusy] = useState(false);
+  const saveItem = async (method: "POST" | "PATCH", body: Record<string, unknown>) => {
+    setItemBusy(true); setItemError(""); setItemMessage("");
+    try {
+      const response = await fetch("/api/settings/items", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "บันทึกรายการไม่สำเร็จ");
+      await refresh(); setItemMessage("บันทึกรายการแล้ว"); return true;
+    } catch (cause) { setItemError(cause instanceof Error ? cause.message : "บันทึกรายการไม่สำเร็จ"); return false; }
+    finally { setItemBusy(false); }
+  };
   return (
     <>
       <PageHeading
@@ -2427,24 +2524,37 @@ function SettingsPage() {
                     <th>รายการในระบบ</th>
                     <th>ประเภท</th>
                     <th>สถานะ</th>
+                    <th>จัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemTypes.map((item) => (
                     <tr key={item.id}>
                       <td>{item.aliases.join(" / ") || "—"}</td>
-                      <td>{item.label}</td>
+                      <td>{editItemId === item.id ? <form className="inline-item-edit" onSubmit={async (event) => { event.preventDefault(); if (await saveItem("PATCH", { id: item.id, label: editItemLabel })) setEditItemId(null); }}><input aria-label={`ชื่อรายการ ${item.label}`} value={editItemLabel} onChange={(event) => setEditItemLabel(event.target.value)} minLength={2} maxLength={120} required /><button className="text-link" disabled={itemBusy}>บันทึก</button><button type="button" className="text-link" onClick={() => setEditItemId(null)}>ยกเลิก</button></form> : item.label}</td>
                       <td>{item.kind === "income" ? "รายได้" : "รายการหัก"}</td>
                       <td>
                         <Status tone={item.active ? "green" : "gray"}>
                           {item.active ? "ใช้งาน" : "ปิดใช้งาน"}
                         </Status>
                       </td>
+                      <td><button className="text-link" disabled={itemBusy} onClick={() => { setEditItemId(item.id); setEditItemLabel(item.label); }}>แก้ชื่อ</button> <button className="text-link" disabled={itemBusy || item.code === "salary"} onClick={() => saveItem("PATCH", { id: item.id, active: !item.active })}>{item.active ? "ปิด" : "เปิด"}</button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </Section>
+          <Section title="เพิ่มรายการเงินเดือน">
+            <form className="settings-form" onSubmit={async (event) => { event.preventDefault(); if (await saveItem("POST", { label: newItemLabel, kind: newItemKind })) setNewItemLabel(""); }}>
+              <label>ชื่อรายการ<input value={newItemLabel} onChange={(event) => setNewItemLabel(event.target.value)} minLength={2} maxLength={120} required placeholder="เช่น ค่าเดินทางพิเศษ" /></label>
+              <label>ประเภท<select value={newItemKind} onChange={(event) => setNewItemKind(event.target.value as "income" | "deduction")}><option value="income">รายได้</option><option value="deduction">รายการหัก</option></select></label>
+              <button className="button button-primary" disabled={itemBusy}>เพิ่มรายการ</button>
+            </form>
+            {itemError && <p className="form-error" role="alert">{itemError}</p>}{itemMessage && <p className="green-text">{itemMessage}</p>}
+          </Section>
+          <Section title="กฎจับคู่ที่บันทึกไว้">
+            {importMappings.length ? <div className="table-scroll"><table><thead><tr><th>หัวคอลัมน์ Excel</th><th>รายการในระบบ</th><th>ประเภท</th></tr></thead><tbody>{importMappings.map((mapping) => <tr key={mapping.id}><td>{mapping.header}</td><td>{mapping.label}</td><td>{mapping.kind === "income" ? "รายได้" : "รายการหัก"}</td></tr>)}</tbody></table></div> : <p className="empty-inline">ยังไม่มีกฎจับคู่เพิ่มเติมจากการนำเข้า</p>}
           </Section>
           <div className="guide-card">
             <h2>รายการใหม่จาก Excel</h2>
@@ -2455,46 +2565,8 @@ function SettingsPage() {
           </div>
         </>
       )}
-      {tab === "users" && (
-        <Section title="บทบาทผู้ใช้งาน">
-          <div className="roles-grid">
-            <div>
-              <strong>Admin</strong>
-              <p>จัดการทุกส่วน รวมถึงผู้ใช้งานและการตั้งค่า</p>
-            </div>
-            <div>
-              <strong>บัญชี / เงินเดือน</strong>
-              <p>นำเข้า แก้ไขข้อมูลวันลา เงินเดือน และรายงาน</p>
-            </div>
-            <div>
-              <strong>ผู้ดูรายงาน</strong>
-              <p>ดูภาพรวมและรายงานโดยไม่มีสิทธิ์แก้ข้อมูล</p>
-            </div>
-          </div>
-        </Section>
-      )}
-      {tab === "company" && (
-        <Section title="ข้อมูลบริษัท">
-          <div className="detail-list">
-            <div>
-              <span>ชื่อบริษัท</span>
-              <strong>{company?.name || "—"}</strong>
-            </div>
-            <div>
-              <span>ปีบัญชีที่แสดง</span>
-              <strong>{new Date().getFullYear() + 543}</strong>
-            </div>
-            <div>
-              <span>สกุลเงิน</span>
-              <strong>บาท (THB)</strong>
-            </div>
-            <div>
-              <span>เขตเวลา</span>
-              <strong>Asia/Bangkok</strong>
-            </div>
-          </div>
-        </Section>
-      )}
+      {tab === "users" && (user?.role === "admin" ? <UserManagement /> : <Section title="ผู้ใช้งานและสิทธิ์"><p>บัญชี Admin เท่านั้นที่จัดการผู้ใช้ได้</p></Section>)}
+      {tab === "company" && <CompanySettings />}
     </>
   );
 }

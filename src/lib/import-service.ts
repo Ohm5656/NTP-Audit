@@ -78,7 +78,7 @@ export async function parseStaged(
     normalized_header: string;
     code: string;
   }>(
-    "SELECT m.normalized_header,t.code FROM import_mappings m JOIN payroll_item_types t ON t.id=m.item_type_id WHERE m.company_id=$1",
+    "SELECT m.normalized_header,t.code FROM import_mappings m JOIN payroll_item_types t ON t.id=m.item_type_id AND t.active=true WHERE m.company_id=$1",
     [companyId],
   );
   const aliasRows = types.rows.map((type) => ({

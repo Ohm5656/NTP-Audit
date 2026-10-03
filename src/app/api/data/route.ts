@@ -8,8 +8,8 @@ export async function GET() {
   try {
     const user = await requireRole("admin", "payroll", "viewer");
     const companyId = user.companyId;
-    const [company, employees, periods, entries, items, leave, salary, imports, itemTypes] = await Promise.all([
-      db().query("SELECT id,name,timezone FROM companies WHERE id=$1", [companyId]),
+    const [company, employees, periods, entries, items, leave, salary, imports, itemTypes, importMappings] = await Promise.all([
+      db().query("SELECT id,name,address,tax_id,timezone FROM companies WHERE id=$1", [companyId]),
       db().query("SELECT id,code,full_name,employee_type,status,position,department,hire_date,current_salary FROM employees WHERE company_id=$1 ORDER BY code", [companyId]),
       db().query("SELECT p.id,p.year,p.month,p.payment_date,p.active_import_id,i.source_sheet,i.original_filename,i.imported_at FROM payroll_periods p LEFT JOIN imports i ON i.id=p.active_import_id WHERE p.company_id=$1 ORDER BY p.year DESC,p.month DESC", [companyId]),
       db().query("SELECT e.id,e.employee_id,e.year,e.month,e.source_row,e.gross,e.deductions,e.net,e.excel_gross,e.excel_net,e.warnings FROM active_payroll_entries e WHERE e.company_id=$1", [companyId]),
@@ -18,6 +18,7 @@ export async function GET() {
       db().query("SELECT s.id,e.code AS employee_code,s.effective_date,s.old_salary,s.new_salary,s.reason,s.note FROM salary_adjustments s JOIN employees e ON e.id=s.employee_id WHERE s.company_id=$1 ORDER BY s.effective_date DESC", [companyId]),
       db().query("SELECT i.id,p.year,p.month,i.version,i.original_filename,i.source_sheet,i.status,i.imported_at, (SELECT count(*)::int FROM payroll_entries e WHERE e.import_id=i.id) AS employee_count FROM imports i JOIN payroll_periods p ON p.id=i.period_id WHERE i.company_id=$1 ORDER BY i.imported_at DESC", [companyId]),
       db().query("SELECT id,code,label,kind,aliases,active FROM payroll_item_types WHERE company_id=$1 ORDER BY kind,code", [companyId]),
+      db().query("SELECT m.id,m.normalized_header,t.code,t.label,t.kind FROM import_mappings m JOIN payroll_item_types t ON t.id=m.item_type_id WHERE m.company_id=$1 ORDER BY m.normalized_header", [companyId]),
     ]);
     const itemsByEntry = new Map<string, Array<{ id: string; code: string; label: string; kind: string; amount: number; originalAmount: number | null; sourceType: string; sourceHeader: string | null; sourceCell: string | null; originalValue: string | null }>>();
     for (const row of items.rows) {
@@ -35,6 +36,7 @@ export async function GET() {
       salaryAdjustments: salary.rows.map(row => ({ id: row.id, employeeId: row.employee_code, date: new Date(row.effective_date).toISOString().slice(0, 10), oldSalary: toSatang(row.old_salary), newSalary: toSatang(row.new_salary), reason: row.reason || "" })),
       imports: imports.rows.map(row => ({ id: row.id, year: row.year, month: row.month, version: row.version, originalFilename: row.original_filename, sourceSheet: row.source_sheet, status: row.status, importedAt: row.imported_at, employeeCount: row.employee_count })),
       itemTypes: itemTypes.rows,
+      importMappings: importMappings.rows.map(row => ({ id: row.id, header: row.normalized_header, code: row.code, label: row.label, kind: row.kind })),
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return authErrorResponse(error);

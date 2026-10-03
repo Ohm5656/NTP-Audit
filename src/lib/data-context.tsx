@@ -83,7 +83,7 @@ export type Entry = {
   }[];
 };
 type ApiData = {
-  company: { id: string; name: string } | null;
+  company: { id: string; name: string; address: string | null; tax_id: string | null; timezone: string } | null;
   user: { id: string; email: string; role: "admin" | "payroll" | "viewer" } | null;
   employees: (Employee & { dbId: string })[];
   periods: Period[];
@@ -92,6 +92,7 @@ type ApiData = {
   salaryAdjustments: SalaryRecord[];
   imports: ImportRecord[];
   itemTypes: ItemType[];
+  importMappings: { id: string; header: string; code: string; label: string; kind: "income" | "deduction" }[];
 };
 type DataContextValue = ApiData & {
   refresh: () => Promise<void>;
@@ -112,6 +113,7 @@ const emptyData: ApiData = {
   salaryAdjustments: [],
   imports: [],
   itemTypes: [],
+  importMappings: [],
 };
 
 export function DataProvider({

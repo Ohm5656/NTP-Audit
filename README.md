@@ -5,9 +5,7 @@ Internal payroll platform for importing monthly Excel files, managing employee p
 <p>
   <img src="https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
-  <img src="https://img.shields.io/badge/Supabase-3FCF8E?style=flat-square&logo=supabase&logoColor=white" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" />
   <img src="https://img.shields.io/badge/Excel-XLSX-217346?style=flat-square&logo=microsoftexcel&logoColor=white" />
 </p>
@@ -24,35 +22,44 @@ Internal payroll platform for importing monthly Excel files, managing employee p
 
 ## Tech Stack
 
-**Frontend**
-- Next.js
-- TypeScript
-- Tailwind CSS
+**Current**
 
-**Backend**
-- Next.js Server
-- Node.js
+- Next.js, TypeScript, and project CSS/design tokens
+- PostgreSQL and private server file storage for original Excel workbooks
+- Docker and npm for local development
 
-**Database & Storage**
-- PostgreSQL
-- Supabase
-- Supabase Storage
+**Future plan**
 
-**Development**
-- Docker
-- npm
+- Supabase PostgreSQL and private Storage after a company project is created
+- Tailwind CSS if the team decides to migrate the current CSS system
 
 ## Workflow
 
 ```mermaid
 flowchart TD
-    A["User / Accounting"]
-    B["Next.js Web App"]
-    C["Application Layer"]
-    D[("PostgreSQL / Supabase DB")]
-    E["Supabase Storage"]
+    A["User / Accounting"] --> B["Next.js Web App"]
+    B --> C["Parse and validate Excel"]
+    C --> D[("PostgreSQL")]
+    C --> E["Private file storage"]
+    D --> F["Monthly and annual reports"]
+    F --> G["Excel export"]
+```
 
-    A --> B
-    B --> C
-    C --> D
-    C --> E
+## Run locally
+
+```bash
+npm install
+docker compose up -d
+cp .env.example .env.local
+# Set ADMIN_EMAIL, ADMIN_PASSWORD, and a random SESSION_SECRET in .env.local
+npm run db:setup
+npm run dev
+```
+
+On Windows PowerShell, use `Copy-Item .env.example .env.local` instead of `cp`. Open `http://localhost:3000/login`. The `.env.local` file and original Excel files are excluded from Git.
+
+The sample `เดือน 9.xlsx` defaults to the `คิดค่าจ้าง` worksheet; confirm the sheet and payroll period before saving. Duplicate imports require an explicit replacement and retain the previous version. Annual employee reports include every stored income and deduction type, leave, and salary adjustments. Export is available for monthly payroll, annual employee, and company reports.
+
+See [Supabase setup](docs/setup-supabase.md) for the later migration and [product plan](docs/product-plan.md) for the session scope and validation results.
+
+Admin can create, deactivate, and reset user accounts in **Settings**. Payroll users can import and edit payroll data; viewers can read dashboards and reports. Settings also show saved Excel mappings and company details. The app can be installed in Edge or Chrome as a PWA over HTTPS or localhost; payroll data is never cached for offline use.

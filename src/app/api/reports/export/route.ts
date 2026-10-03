@@ -95,14 +95,15 @@ export async function GET(request: Request) {
       leave.addRow([]);
       leave.addRow(["วันที่เริ่ม", "วันที่สิ้นสุด", "ประเภท", "จำนวนวัน", "เหตุผล"]);
       const leaveRows = await db().query<{ date_from: string; date_to: string; leave_type: string; days: string; reason: string | null }>("SELECT date_from::text,date_to::text,leave_type,days,reason FROM leave_records WHERE company_id=$1 AND employee_id=$2 AND EXTRACT(YEAR FROM date_from)=$3 ORDER BY date_from", [user.companyId, selected.id, year]);
-      for (const row of leaveRows.rows) leave.addRow([row.date_from, row.date_to, row.leave_type, Number(row.days), safeText(row.reason || "")]);
+      const leaveLabels: Record<string, string> = { personal: "ลากิจ", vacation: "พักร้อน", sick: "ลาป่วย", unpaid: "ลาไม่รับค่าจ้าง", absence: "ขาดงาน" };
+      for (const row of leaveRows.rows) leave.addRow([row.date_from, row.date_to, leaveLabels[row.leave_type] || row.leave_type, Number(row.days), safeText(row.reason || "")]);
       styleSheet(leave, 4);
       const salary = book.addWorksheet("ปรับเงินเดือน");
       salary.addRow(["ประวัติปรับเงินเดือน", year + 543]);
       salary.addRow([]);
-      salary.addRow(["วันที่มีผล", "เงินเดือนเดิม", "เงินเดือนใหม่", "ส่วนต่าง", "เหตุผล"]);
+      salary.addRow(["วันที่มีผล", "เงินเดือนเดิม", "เงินเดือนใหม่", "ส่วนต่าง", "อัตรา (%)", "เหตุผล"]);
       const salaryRows = await db().query<{ effective_date: string; old_salary: string; new_salary: string; reason: string | null }>("SELECT effective_date::text,old_salary,new_salary,reason FROM salary_adjustments WHERE company_id=$1 AND employee_id=$2 AND EXTRACT(YEAR FROM effective_date)=$3 ORDER BY effective_date", [user.companyId, selected.id, year]);
-      for (const row of salaryRows.rows) salary.addRow([row.effective_date, Number(row.old_salary), Number(row.new_salary), Number(row.new_salary) - Number(row.old_salary), safeText(row.reason || "")]);
+      for (const row of salaryRows.rows) salary.addRow([row.effective_date, Number(row.old_salary), Number(row.new_salary), Number(row.new_salary) - Number(row.old_salary), Number(row.old_salary) ? ((Number(row.new_salary) - Number(row.old_salary)) / Number(row.old_salary)) * 100 : null, safeText(row.reason || "")]);
       styleSheet(salary);
     } else if (kind === "monthly") {
       const sheet = book.addWorksheet(monthNames[month! - 1]);

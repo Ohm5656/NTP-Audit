@@ -2098,3 +2098,18 @@ select {
 .payroll-edit-form label { display: grid; gap: 4px; color: #52665a; font-size: 12px; }
 .payroll-edit-form input { min-height: 36px; width: 180px; border: 1px solid #ceddd2; border-radius: 7px; padding: 6px 9px; color: #20352d; background: #fff; }
 .payroll-edit-form .button { min-height: 36px; }
+.settings-form { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 4px 0; }
+.settings-form label { display: grid; gap: 7px; color: #52665a; font-size: 13px; min-width: 190px; flex: 1; }
+.settings-form input, .settings-form select, .settings-form textarea { border: 1px solid #ceddd2; border-radius: 8px; background: #fff; color: #20352d; padding: 9px 11px; min-height: 40px; font: inherit; }
+.settings-form textarea { resize: vertical; }
+.settings-form .settings-wide { flex-basis: 100%; }
+.settings-form .button { min-height: 40px; }
+.chart-empty { min-height: 170px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #74867a; text-align: center; }
+.chart-empty strong { color: #2b4938; font-size: 15px; }
+.chart-empty span { font-size: 13px; }
+.year-comparison { display: flex; flex-wrap: wrap; gap: 8px 30px; padding: 10px 16px; margin: -10px 0 18px; border: 1px solid #dce6df; border-radius: 7px; background: #f8fbf9; }
+.year-comparison div { display: flex; align-items: baseline; gap: 8px; }
+.year-comparison span { color: #6e8174; font-size: 12px; }
+.year-comparison strong { color: #20352d; font-size: 14px; font-variant-numeric: tabular-nums; }
+.inline-item-edit { display: flex; gap: 7px; align-items: center; }
+.inline-item-edit input { min-width: 130px; max-width: 210px; border: 1px solid #ceddd2; border-radius: 7px; padding: 6px 8px; font: inherit; }
