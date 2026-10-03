@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "NTP Audit | ระบบรายได้พนักงาน",
   description: "ระบบข้อมูลเงินเดือน รายงานรายปี และการนำเข้า Excel",
   applicationName: "NTP Audit",
+  icons: { icon: "/logo.png", apple: "/logo.png" },
 };
 
 export const viewport: Viewport = { themeColor: "#176D52" };

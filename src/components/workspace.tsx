@@ -49,13 +49,13 @@ import {
 } from "@/components/import-flow";
 import { toSatang } from "@/lib/money";
 import type { AppUser } from "@/lib/auth";
+import { EmployeeAnnualTable, MonthlyMonthFolders, MonthlyPayrollTable, MonthlyYearFolders } from "@/components/payroll-navigation";
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
 
 const mainNav: NavItem[] = [
   { href: "/", label: "ภาพรวม", icon: LayoutDashboard },
   { href: "/monthly", label: "ข้อมูลรายเดือน", icon: Wallet },
-  { href: "/reports/employee", label: "รายงานรายปี", icon: FileSpreadsheet },
   { href: "/employees", label: "พนักงาน", icon: Users },
   { href: "/leave", label: "วันลา", icon: Clock3 },
   { href: "/salary", label: "ปรับเงินเดือน", icon: SlidersHorizontal },
@@ -244,7 +244,7 @@ function CompanySwitch() {
     <div className="company-switch">
       <span className="company-monogram">N</span>
       <div>
-        <strong>{company?.name || "บริษัทของฉัน"}</strong>
+        <strong>{company?.name || "NTP Electric and Engineering Co., Ltd."}</strong>
         <small>ระบบภายในบริษัท</small>
       </div>
     </div>
@@ -272,10 +272,11 @@ export default function Workspace({ user }: { user?: AppUser }) {
       : pathname === href || pathname.startsWith(`${href}/`);
   let content: ReactNode;
   if (pathname === "/") content = <Dashboard year={year} setYear={setYear} />;
-  else if (pathname === "/monthly")
-    content = <MonthlyList year={year} setYear={setYear} />;
-  else if (pathname.startsWith("/monthly/"))
-    content = <MonthDetail year={year} setYear={setYear} />;
+  else if (pathname === "/monthly") content = <MonthlyYearFolders />;
+  else if (/^\/monthly\/\d{4}$/.test(pathname))
+    content = <MonthlyMonthFolders year={Number(pathname.split("/")[2]) - 543} />;
+  else if (/^\/monthly\/\d{4}\/\d{1,2}$/.test(pathname))
+    content = <MonthlyPayrollTable year={Number(pathname.split("/")[2]) - 543} month={Number(pathname.split("/")[3])} />;
   else if (pathname === "/import") content = <LiveImportUpload />;
   else if (pathname === "/import/preview") content = <LiveImportPreview />;
   else if (pathname === "/import/mapping") content = <LiveImportMapping />;
@@ -283,13 +284,13 @@ export default function Workspace({ user }: { user?: AppUser }) {
     content = <LiveImportValidation />;
   else if (pathname === "/import/complete") content = <LiveImportComplete />;
   else if (pathname === "/reports/employee")
-    content = <AnnualEmployeeReport year={year} setYear={setYear} />;
+    content = <EmployeesPage search={search} setSearch={setSearch} />;
   else if (pathname === "/reports/company")
     content = <CompanyReport year={year} setYear={setYear} />;
   else if (pathname === "/employees")
     content = <EmployeesPage search={search} setSearch={setSearch} />;
   else if (pathname.startsWith("/employees/"))
-    content = <EmployeeProfile id={pathname.split("/")[2]} />;
+    content = <EmployeeProfile id={pathname.split("/")[2]} selectedAnnualYear={Number(pathname.split("/")[3]) - 543} />;
   else if (pathname === "/leave") content = <LeavePage />;
   else if (pathname === "/salary") content = <SalaryPage />;
   else if (pathname === "/imports") content = <ImportHistory />;
@@ -315,11 +316,7 @@ export default function Workspace({ user }: { user?: AppUser }) {
         <div className="app-shell">
           <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
             <div className="brand">
-              <div className="brand-symbol">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
+              <img src="/logo.png" className="brand-logo" alt="NTP Electric and Engineering" />
               <div>
                 <strong>NTP Audit</strong>
                 <small>ระบบรายได้พนักงาน</small>
@@ -432,11 +429,7 @@ function LoginPage() {
   return (
     <div className="login-layout">
       <div className="login-brand">
-        <div className="brand-symbol">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
+        <img src="/logo.png" className="brand-logo" alt="NTP Electric and Engineering" />
         <strong>NTP Audit</strong>
       </div>
       <form
@@ -1482,7 +1475,7 @@ function CompanyReport({
         </div>
       </Section>
       <div className="related-link">
-        <Link href="/reports/employee">
+        <Link href="/employees">
           เปิดรายงานรายพนักงาน <ArrowRight size={16} />
         </Link>
       </div>
@@ -1693,14 +1686,15 @@ function EmployeesPage({
   );
 }
 
-function EmployeeProfile({ id }: { id: string }) {
+function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnualYear: number }) {
   const { employees, entries, payrollForMonth, leaveRecords, salaryAdjustments } =
     usePayrollData();
   const employee = employees.find((item) => item.id === id);
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState(selectedAnnualYear > 1900 ? "annual" : "overview");
   const monthly = entries
     .filter((entry) => entry.employeeDbId === employee?.dbId)
     .sort((a, b) => b.year - a.year || b.month - a.month)[0];
+  const tenureText = employee?.startDate ? (() => { const start = new Date(employee.startDate); const now = new Date(); let monthsWorked = (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth(); if (now.getDate() < start.getDate()) monthsWorked--; return `${Math.max(0, Math.floor(monthsWorked / 12))} \u0e1b\u0e35 ${Math.max(0, monthsWorked % 12)} \u0e40\u0e14\u0e37\u0e2d\u0e19`; })() : "\u2014";
   if (!employee)
     return (
       <PageHeading
@@ -1734,6 +1728,7 @@ function EmployeeProfile({ id }: { id: string }) {
       <div className="tabs" role="tablist">
         {[
           ["overview", "ภาพรวม"],
+          ["annual", "\u0e23\u0e32\u0e22\u0e44\u0e14\u0e49\u0e23\u0e32\u0e22\u0e1b\u0e35"],
           ["income", "รายได้"],
           ["leave", "วันลา"],
           ["salary", "ปรับเงินเดือน"],
@@ -1772,6 +1767,7 @@ function EmployeeProfile({ id }: { id: string }) {
                 <span>วันเริ่มงาน</span>
                 <strong>{thaiDate(employee.startDate)}</strong>
               </div>
+              <div><span>{"\u0e2d\u0e32\u0e22\u0e38\u0e07\u0e32\u0e19"}</span><strong>{tenureText}</strong></div>
               <div>
                 <span>เงินเดือนปัจจุบัน</span>
                 <strong>฿{money(employee.salary)}</strong>
@@ -1781,7 +1777,7 @@ function EmployeeProfile({ id }: { id: string }) {
           <Section
             title="รายได้ล่าสุด"
             action={
-              <Link href="/reports/employee" className="text-link">
+              <Link href="/employees" className="text-link">
                 รายงานรายปี <ArrowRight size={15} />
               </Link>
             }
@@ -1809,7 +1805,8 @@ function EmployeeProfile({ id }: { id: string }) {
           </Section>
         </div>
       )}
-      {tab === "income" && (
+      {tab === "annual" && <EmployeeAnnualTable employeeId={employee.id} selectedYear={selectedAnnualYear > 1900 ? selectedAnnualYear : (monthly?.year || new Date().getFullYear())} />}
+            {tab === "income" && (
         <Section title="รายได้รายเดือน">
           <div className="table-scroll">
             <table>

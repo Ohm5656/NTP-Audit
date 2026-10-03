@@ -2113,3 +2113,22 @@ select {
 .year-comparison strong { color: #20352d; font-size: 14px; font-variant-numeric: tabular-nums; }
 .inline-item-edit { display: flex; gap: 7px; align-items: center; }
 .inline-item-edit input { min-width: 130px; max-width: 210px; border: 1px solid #ceddd2; border-radius: 7px; padding: 6px 8px; font: inherit; }
+/* Payroll folder navigation and Excel-style data tables */
+.year-folder-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 320px)); gap: 14px; }
+.year-folder, .month-folder { display: flex; align-items: center; gap: 13px; min-height: 98px; padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--ink); transition: border-color .16s ease, box-shadow .16s ease; }
+.year-folder:hover, .month-folder.active:hover { border-color: #76ad87; box-shadow: 0 8px 20px rgba(25, 92, 57, .08); }
+.year-folder > span:nth-child(2), .month-folder > span:nth-child(2) { display: grid; gap: 4px; flex: 1; }
+.year-folder strong { font-size: 21px; }.year-folder small, .month-folder small { color: var(--muted); font-size: 12px; }
+.year-folder-icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 10px; background: #eaf5ed; color: var(--green); }
+.month-folder-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 11px; }
+.month-folder { min-height: 76px; color: #93a398; background: #fbfcfb; }.month-folder.active { color: var(--ink); }
+.month-folder.active > svg { color: var(--green); }.month-folder:not(.active) > svg { color: #b5c4b9; }
+.monthly-detail-scroll { max-height: min(70vh, 680px); }.monthly-detail-table, .annual-payroll-table { min-width: max-content; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+.monthly-detail-table th, .monthly-detail-table td, .annual-payroll-table th, .annual-payroll-table td { white-space: nowrap; padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #e7eee9; }
+.monthly-detail-table thead th, .annual-payroll-table thead th { position: sticky; top: 0; z-index: 3; background: #f7faf8; color: #355844; border-bottom: 1px solid #cfe0d3; }.monthly-header-groups th { text-align: center; font-weight: 600; }
+.monthly-header-groups > th { background: #e9f3eb !important; color: #216b48 !important; }.monthly-employee { position: sticky; left: 0; z-index: 2; min-width: 195px; text-align: left; background: #fff; box-shadow: 1px 0 0 #e3ece5; }
+thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important; }.monthly-employee a { color: #234c35; font-weight: 600; text-decoration: none; }.monthly-employee small { display: block; margin-top: 2px; color: #829388; font-size: 10px; font-weight: 400; }
+.monthly-detail-table tbody tr:hover td, .monthly-detail-table tbody tr:hover .monthly-employee { background: #f5faf6; }.monthly-group-row th { position: static; background: #eff6f0; color: #26724d; padding: 8px 11px; text-align: left; }.monthly-total-row td, .monthly-total-row th, .monthly-detail-table tfoot td, .monthly-detail-table tfoot th, .annual-payroll-table tfoot td, .annual-payroll-table tfoot th { background: #f0f7f1; font-weight: 700; }.monthly-total-row .monthly-employee, .monthly-detail-table tfoot .monthly-employee, .annual-payroll-table tfoot .monthly-employee { z-index: 2; }
+.monthly-detail-table .numeric, .annual-payroll-table .numeric { min-width: 100px; text-align: right; }.total-column { background: #f7fbf8 !important; font-weight: 600; }.net-column { background: #eef7ef !important; color: #176d52; font-weight: 700; }.annual-year-links { display: flex; gap: 6px; flex-wrap: wrap; }.annual-year-links a { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--green); font-size: 12px; text-decoration: none; }.annual-year-links a.selected { background: var(--green); color: #fff; border-color: var(--green); }.employee-annual-section { margin-top: 18px; }
+@media (max-width: 600px) { .year-folder-grid, .month-folder-grid { grid-template-columns: 1fr; }.month-folder { min-height: 68px; }.monthly-detail-table th, .monthly-detail-table td, .annual-payroll-table th, .annual-payroll-table td { padding: 7px 8px; }.monthly-employee { min-width: 160px; } }
+.brand-logo { width: 42px; height: 42px; object-fit: cover; object-position: center; border-radius: 10px; border: 1px solid #d8e4db; background: #fff; }

@@ -35,7 +35,7 @@ try {
   await client.query("BEGIN");
   await client.query(fs.readFileSync(path.resolve("db/schema.sql"), "utf8"));
   let company = await client.query("SELECT id FROM companies ORDER BY created_at LIMIT 1");
-  if (!company.rowCount) company = await client.query("INSERT INTO companies(name) VALUES($1) RETURNING id", [process.env.COMPANY_NAME || "บริษัทของฉัน"]);
+  if (!company.rowCount) company = await client.query("INSERT INTO companies(name) VALUES($1) RETURNING id", [process.env.COMPANY_NAME || "NTP Electric and Engineering Co., Ltd."]);
   const companyId = company.rows[0].id;
   for (const [code, label, kind, aliases] of seedTypes) {
     await client.query("INSERT INTO payroll_item_types(company_id,code,label,kind,aliases) VALUES($1,$2,$3,$4,$5) ON CONFLICT(company_id,code) DO NOTHING", [companyId, code, label, kind, aliases]);
