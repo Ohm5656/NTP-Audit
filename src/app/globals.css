@@ -2031,6 +2031,51 @@ select {
     padding: 3px !important;
   }
 }
+.mapping-employees-title {
+  margin-top: 24px;
+}
+.mapping-bulk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.issue-list {
+  margin: 14px 0;
+  border: 1px solid #f0d0c9;
+  border-radius: 6px;
+  background: #fff7f5;
+  padding: 6px 12px;
+  color: var(--red);
+}
+.issue-list div {
+  display: flex;
+  gap: 7px;
+  padding: 6px 0;
+  font-size: 11px;
+}
+.warning-details {
+  margin: 13px 0;
+  border: 1px solid #eadbc1;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fffbf3;
+  color: var(--amber);
+  font-size: 11px;
+}
+.warning-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.warning-details p {
+  margin: 5px 0;
+}
+.import-panel select {
+  max-width: 100%;
+}
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

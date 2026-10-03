@@ -61,6 +61,18 @@ CREATE TABLE IF NOT EXISTS payroll_periods (
   UNIQUE(company_id,year,month)
 );
 
+CREATE TABLE IF NOT EXISTS import_uploads (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL REFERENCES companies(id),
+  uploaded_by uuid NOT NULL REFERENCES users(id),
+  original_filename text NOT NULL,
+  storage_key text NOT NULL UNIQUE,
+  sha256 text NOT NULL,
+  status text NOT NULL DEFAULT 'staged' CHECK (status IN ('staged','committed','expired')),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS import_uploads_company_time_idx ON import_uploads(company_id,created_at DESC);
+
 CREATE TABLE IF NOT EXISTS imports (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id uuid NOT NULL REFERENCES companies(id),

@@ -39,6 +39,14 @@ import {
   type PayrollRow,
 } from "@/lib/mock";
 import { DataProvider, usePayrollData } from "@/lib/data-context";
+import { ImportWizardProvider } from "@/lib/import-wizard";
+import {
+  ImportUpload as LiveImportUpload,
+  ImportPreview as LiveImportPreview,
+  ImportMapping as LiveImportMapping,
+  ImportValidation as LiveImportValidation,
+  ImportComplete as LiveImportComplete,
+} from "@/components/import-flow";
 import { toSatang } from "@/lib/money";
 import type { AppUser } from "@/lib/auth";
 
@@ -59,7 +67,11 @@ const systemNav: NavItem[] = [
 ];
 
 async function postJson(path: string, body: unknown) {
-  const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || "บันทึกข้อมูลไม่สำเร็จ");
   return result;
@@ -147,12 +159,23 @@ function SelectYear({
 }) {
   const { periods } = usePayrollData();
   const current = new Date().getFullYear() + 543;
-  const years = Array.from(new Set([current, current + 1, Number(year), ...periods.map((period) => period.year + 543)])).sort((a, b) => b - a);
+  const years = Array.from(
+    new Set([
+      current,
+      current + 1,
+      Number(year),
+      ...periods.map((period) => period.year + 543),
+    ]),
+  ).sort((a, b) => b - a);
   return (
     <label className="select-wrap">
       <span>ปี</span>
       <select value={year} onChange={(e) => onChange(e.target.value)}>
-        {years.map((option) => <option value={String(option)} key={option}>{option}</option>)}
+        {years.map((option) => (
+          <option value={String(option)} key={option}>
+            {option}
+          </option>
+        ))}
       </select>
       <ChevronDown size={15} aria-hidden />
     </label>
@@ -217,13 +240,27 @@ function NavLink({
 
 function CompanySwitch() {
   const { company } = usePayrollData();
-  return <div className="company-switch"><span className="company-monogram">N</span><div><strong>{company?.name || "บริษัทของฉัน"}</strong><small>ระบบภายในบริษัท</small></div></div>;
+  return (
+    <div className="company-switch">
+      <span className="company-monogram">N</span>
+      <div>
+        <strong>{company?.name || "บริษัทของฉัน"}</strong>
+        <small>ระบบภายในบริษัท</small>
+      </div>
+    </div>
+  );
 }
 
 export default function Workspace({ user }: { user?: AppUser }) {
   const pathname = usePathname() || "/";
-  const [year, setYear] = useState(pathname.startsWith("/monthly/") ? pathname.split("/")[2] : String(new Date().getFullYear() + 543));
-  useEffect(() => { if (pathname.startsWith("/monthly/")) setYear(pathname.split("/")[2]); }, [pathname]);
+  const [year, setYear] = useState(
+    pathname.startsWith("/monthly/")
+      ? pathname.split("/")[2]
+      : String(new Date().getFullYear() + 543),
+  );
+  useEffect(() => {
+    if (pathname.startsWith("/monthly/")) setYear(pathname.split("/")[2]);
+  }, [pathname]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -239,11 +276,12 @@ export default function Workspace({ user }: { user?: AppUser }) {
     content = <MonthlyList year={year} setYear={setYear} />;
   else if (pathname.startsWith("/monthly/"))
     content = <MonthDetail year={year} setYear={setYear} />;
-  else if (pathname === "/import") content = <ImportUpload />;
-  else if (pathname === "/import/preview") content = <ImportPreview />;
-  else if (pathname === "/import/mapping") content = <ImportMapping />;
-  else if (pathname === "/import/validation") content = <ImportValidation />;
-  else if (pathname === "/import/complete") content = <ImportComplete />;
+  else if (pathname === "/import") content = <LiveImportUpload />;
+  else if (pathname === "/import/preview") content = <LiveImportPreview />;
+  else if (pathname === "/import/mapping") content = <LiveImportMapping />;
+  else if (pathname === "/import/validation")
+    content = <LiveImportValidation />;
+  else if (pathname === "/import/complete") content = <LiveImportComplete />;
   else if (pathname === "/reports/employee")
     content = <AnnualEmployeeReport year={year} setYear={setYear} />;
   else if (pathname === "/reports/company")
@@ -270,95 +308,100 @@ export default function Workspace({ user }: { user?: AppUser }) {
 
   return (
     <DataProvider year={Number(year) - 543}>
-      <div className="app-shell">
-        <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
-          <div className="brand">
-            <div className="brand-symbol">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <div>
-              <strong>NTP Audit</strong>
-              <small>ระบบรายได้พนักงาน</small>
-            </div>
-            <IconButton label="ปิดเมนู" onClick={() => setMobileOpen(false)}>
-              <X size={19} />
-            </IconButton>
-          </div>
-          <CompanySwitch />
-          <nav aria-label="เมนูหลัก">
-            <p className="nav-caption">งานประจำ</p>
-            {mainNav.map((item) => (
-              <NavLink
-                key={item.href}
-                item={item}
-                active={isActive(item.href)}
-                onNavigate={() => setMobileOpen(false)}
-              />
-            ))}
-            <p className="nav-caption nav-caption-second">จัดการระบบ</p>
-            {systemNav.map((item) => (
-              <NavLink
-                key={item.href}
-                item={item}
-                active={isActive(item.href)}
-                onNavigate={() => setMobileOpen(false)}
-              />
-            ))}
-          </nav>
-          <div className="sidebar-bottom">
-            <div className="prototype-note">
-              <span className="note-dot" />
-              ข้อมูลจากฐานข้อมูลภายใน
-            </div>
-            <div className="user-block">
-              <span className="avatar">บ</span>
-              <div>
-                <strong>{user?.email || "ผู้ใช้งาน"}</strong>
-                <small>{user?.role || "Admin"}</small>
+      <ImportWizardProvider>
+        <div className="app-shell">
+          <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
+            <div className="brand">
+              <div className="brand-symbol">
+                <span></span>
+                <span></span>
+                <span></span>
               </div>
-              <MoreHorizontal size={18} />
+              <div>
+                <strong>NTP Audit</strong>
+                <small>ระบบรายได้พนักงาน</small>
+              </div>
+              <IconButton label="ปิดเมนู" onClick={() => setMobileOpen(false)}>
+                <X size={19} />
+              </IconButton>
             </div>
+            <CompanySwitch />
+            <nav aria-label="เมนูหลัก">
+              <p className="nav-caption">งานประจำ</p>
+              {mainNav.map((item) => (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  active={isActive(item.href)}
+                  onNavigate={() => setMobileOpen(false)}
+                />
+              ))}
+              <p className="nav-caption nav-caption-second">จัดการระบบ</p>
+              {systemNav.map((item) => (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  active={isActive(item.href)}
+                  onNavigate={() => setMobileOpen(false)}
+                />
+              ))}
+            </nav>
+            <div className="sidebar-bottom">
+              <div className="prototype-note">
+                <span className="note-dot" />
+                ข้อมูลจากฐานข้อมูลภายใน
+              </div>
+              <div className="user-block">
+                <span className="avatar">บ</span>
+                <div>
+                  <strong>{user?.email || "ผู้ใช้งาน"}</strong>
+                  <small>{user?.role || "Admin"}</small>
+                </div>
+                <MoreHorizontal size={18} />
+              </div>
+            </div>
+          </aside>
+          {mobileOpen && (
+            <button
+              className="sidebar-backdrop"
+              onClick={() => setMobileOpen(false)}
+              aria-label="ปิดเมนู"
+            />
+          )}
+          <div className="main-shell">
+            <header className="topbar">
+              <div className="topbar-left">
+                <IconButton
+                  label="เปิดเมนู"
+                  onClick={() => setMobileOpen(true)}
+                >
+                  <Menu size={20} />
+                </IconButton>
+                <span>ระบบบัญชีและเงินเดือน</span>
+                <ChevronRight size={14} />
+                <strong>{pageLabel(pathname)}</strong>
+              </div>
+              <div className="topbar-right">
+                <span className="topbar-date">ข้อมูลปี {year}</span>
+                <IconButton label="การแจ้งเตือน">
+                  <Bell size={19} />
+                </IconButton>
+                <span className="topbar-avatar">บ</span>
+                <IconButton
+                  label="ออกจากระบบ"
+                  onClick={async () => {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                    window.location.href = "/login";
+                  }}
+                >
+                  <LogOut size={18} />
+                </IconButton>
+              </div>
+            </header>
+            <main className="page-content">{content}</main>
           </div>
-        </aside>
-        {mobileOpen && (
-          <button
-            className="sidebar-backdrop"
-            onClick={() => setMobileOpen(false)}
-            aria-label="ปิดเมนู"
-          />
-        )}
-        <div className="main-shell">
-          <header className="topbar">
-            <div className="topbar-left">
-              <IconButton label="เปิดเมนู" onClick={() => setMobileOpen(true)}>
-                <Menu size={20} />
-              </IconButton>
-              <span>ระบบบัญชีและเงินเดือน</span>
-              <ChevronRight size={14} />
-              <strong>{pageLabel(pathname)}</strong>
-            </div>
-            <div className="topbar-right">
-              <span className="topbar-date">ข้อมูลปี {year}</span>
-              <IconButton label="การแจ้งเตือน">
-                <Bell size={19} />
-              </IconButton>
-              <span className="topbar-avatar">บ</span>
-              <IconButton
-                label="ออกจากระบบ"
-                onClick={async () => {
-                  await fetch("/api/auth/logout", { method: "POST" });
-                  window.location.href = "/login";
-                }}
-              >
-                <LogOut size={18} />
-              </IconButton>
-            </div>
-          </header>
-          <main className="page-content">{content}</main>
         </div>
-      </div>
+      </ImportWizardProvider>
     </DataProvider>
   );
 }
@@ -469,9 +512,15 @@ function Dashboard({
 }) {
   const { payrollForMonth, annualTotal, coverage, employees, periods } =
     usePayrollData();
-  const latest = periods.filter((period) => period.year === Number(year) - 543 && period.activeImportId).sort((a, b) => b.month - a.month)[0];
+  const latest = periods
+    .filter(
+      (period) => period.year === Number(year) - 543 && period.activeImportId,
+    )
+    .sort((a, b) => b.month - a.month)[0];
   const rows = latest ? payrollForMonth(latest.month) : [];
-  const latestHref = latest ? `/monthly/${year}/${String(latest.month).padStart(2, "0")}` : "/import";
+  const latestHref = latest
+    ? `/monthly/${year}/${String(latest.month).padStart(2, "0")}`
+    : "/import";
   return (
     <>
       <PageHeading
@@ -492,7 +541,11 @@ function Dashboard({
           <div>
             <span className="overline">ความครบของข้อมูล</span>
             <h2>ข้อมูลปี {year}</h2>
-            <p>{latest ? `นำเข้าแล้วถึงเดือน${months[latest.month - 1]}` : "ยังไม่มีข้อมูลในปีนี้"}</p>
+            <p>
+              {latest
+                ? `นำเข้าแล้วถึงเดือน${months[latest.month - 1]}`
+                : "ยังไม่มีข้อมูลในปีนี้"}
+            </p>
           </div>
           <div className="coverage-number">
             <strong>
@@ -505,13 +558,27 @@ function Dashboard({
         <div className="coverage-months">
           {shortMonths.map((name, index) => (
             <Link
-              href={periods.some((p) => p.year === Number(year) - 543 && p.month === index + 1 && p.activeImportId) ? `/monthly/${year}/${String(index + 1).padStart(2, "0")}` : "/import"}
+              href={
+                periods.some(
+                  (p) =>
+                    p.year === Number(year) - 543 &&
+                    p.month === index + 1 &&
+                    p.activeImportId,
+                )
+                  ? `/monthly/${year}/${String(index + 1).padStart(2, "0")}`
+                  : "/import"
+              }
               className={`coverage-month ${periods.some((p) => p.year === Number(year) - 543 && p.month === index + 1 && p.activeImportId) ? "completed" : "missing"}`}
               key={name}
             >
               <span>{name}</span>
               <span className="coverage-marker">
-                {periods.some((p) => p.year === Number(year) - 543 && p.month === index + 1 && p.activeImportId) ? (
+                {periods.some(
+                  (p) =>
+                    p.year === Number(year) - 543 &&
+                    p.month === index + 1 &&
+                    p.activeImportId,
+                ) ? (
                   <Check size={13} strokeWidth={2.5} />
                 ) : (
                   "—"
@@ -556,19 +623,33 @@ function Dashboard({
           <div className="latest-period">
             <div className="latest-main">
               <div>
-                <strong>{latest ? `${months[latest.month - 1]} ${year}` : "ยังไม่มีงวดข้อมูล"}</strong>
-                <p>{latest ? `บันทึกข้อมูล ${rows.length} รายการ` : "เริ่มด้วยการนำเข้า Excel รายเดือน"}</p>
+                <strong>
+                  {latest
+                    ? `${months[latest.month - 1]} ${year}`
+                    : "ยังไม่มีงวดข้อมูล"}
+                </strong>
+                <p>
+                  {latest
+                    ? `บันทึกข้อมูล ${rows.length} รายการ`
+                    : "เริ่มด้วยการนำเข้า Excel รายเดือน"}
+                </p>
               </div>
-              <Status tone={latest ? "green" : "gray"}>{latest ? "นำเข้าแล้ว" : "รอนำเข้า"}</Status>
+              <Status tone={latest ? "green" : "gray"}>
+                {latest ? "นำเข้าแล้ว" : "รอนำเข้า"}
+              </Status>
             </div>
             <div className="latest-numbers">
               <div>
                 <span>รายได้รวม</span>
-                <strong>{latest ? `฿${money(sum(rows, "gross"))}` : "—"}</strong>
+                <strong>
+                  {latest ? `฿${money(sum(rows, "gross"))}` : "—"}
+                </strong>
               </div>
               <div>
                 <span>รายการหัก</span>
-                <strong>{latest ? `฿${money(sum(rows, "deductions"))}` : "—"}</strong>
+                <strong>
+                  {latest ? `฿${money(sum(rows, "deductions"))}` : "—"}
+                </strong>
               </div>
               <div>
                 <span>เงินสุทธิ</span>
@@ -593,7 +674,11 @@ function Dashboard({
                 <CircleAlert size={17} />
               </span>
               <div>
-                <strong>{coverage < 12 ? `เดือน${months[Math.min(coverage, 11)]}ยังไม่มีข้อมูล` : "ข้อมูลครบทั้งปีแล้ว"}</strong>
+                <strong>
+                  {coverage < 12
+                    ? `เดือน${months[Math.min(coverage, 11)]}ยังไม่มีข้อมูล`
+                    : "ข้อมูลครบทั้งปีแล้ว"}
+                </strong>
                 <small>เมื่อปิดงวดแล้วให้นำเข้าไฟล์ Excel</small>
               </div>
               <Link href="/import">นำเข้า</Link>
@@ -603,8 +688,16 @@ function Dashboard({
                 <CircleCheck size={17} />
               </span>
               <div>
-                <strong>{latest ? `งวด${months[latest.month - 1]}พร้อมใช้ในรายงาน` : "รอการนำเข้างวดแรก"}</strong>
-                <small>{latest ? "ข้อมูลมาจากฐานข้อมูลที่บันทึกแล้ว" : "รายงานจะอัปเดตหลังยืนยันนำเข้า"}</small>
+                <strong>
+                  {latest
+                    ? `งวด${months[latest.month - 1]}พร้อมใช้ในรายงาน`
+                    : "รอการนำเข้างวดแรก"}
+                </strong>
+                <small>
+                  {latest
+                    ? "ข้อมูลมาจากฐานข้อมูลที่บันทึกแล้ว"
+                    : "รายงานจะอัปเดตหลังยืนยันนำเข้า"}
+                </small>
               </div>
             </div>
           </div>
@@ -622,7 +715,13 @@ function Dashboard({
           {shortMonths.map((label, i) => (
             <div key={label} className="bar-chart-column">
               <div className="bar-chart-track">
-                {payrollForMonth(i + 1).length > 0 && <div style={{ height: `${Math.max(10, annualTotal("net") ? sum(payrollForMonth(i + 1), "net") / (annualTotal("net") / Math.max(coverage, 1)) * 72 : 10)}%` }} />}
+                {payrollForMonth(i + 1).length > 0 && (
+                  <div
+                    style={{
+                      height: `${Math.max(10, annualTotal("net") ? (sum(payrollForMonth(i + 1), "net") / (annualTotal("net") / Math.max(coverage, 1))) * 72 : 10)}%`,
+                    }}
+                  />
+                )}
               </div>
               <span>{label}</span>
             </div>
@@ -674,9 +773,7 @@ function MonthlyList({
             aria-label="ค้นหาเดือน"
           />
         </div>
-        <span className="toolbar-meta">
-          {coverage} จาก 12 เดือนมีข้อมูล
-        </span>
+        <span className="toolbar-meta">{coverage} จาก 12 เดือนมีข้อมูล</span>
       </div>
       <div className="table-wrap">
         <table>
@@ -693,13 +790,22 @@ function MonthlyList({
           </thead>
           <tbody>
             {periods.map((p) => {
-              const imported = savedPeriods.some((period) => period.year === Number(year) - 543 && period.month === p.index && period.activeImportId);
+              const imported = savedPeriods.some(
+                (period) =>
+                  period.year === Number(year) - 543 &&
+                  period.month === p.index &&
+                  period.activeImportId,
+              );
               return (
                 <tr key={p.index}>
                   <td>
                     <Link
                       className="table-primary-link"
-                      href={imported ? `/monthly/${year}/${String(p.index).padStart(2, "0")}` : "/import"}
+                      href={
+                        imported
+                          ? `/monthly/${year}/${String(p.index).padStart(2, "0")}`
+                          : "/import"
+                      }
                     >
                       {p.name} {year}
                     </Link>
@@ -743,7 +849,12 @@ function MonthDetail({
   const pathname = usePathname();
   const selectedYear = Number(pathname.split("/")[2]);
   const selectedMonth = Number(pathname.split("/")[3]);
-  const period = periods.find((p) => p.year === selectedYear - 543 && p.month === selectedMonth && p.activeImportId);
+  const period = periods.find(
+    (p) =>
+      p.year === selectedYear - 543 &&
+      p.month === selectedMonth &&
+      p.activeImportId,
+  );
   const allRows = payrollForMonth(selectedMonth);
   const rows = allRows.filter(
     (row) =>
@@ -751,7 +862,20 @@ function MonthDetail({
       (row.employee.name.includes(query) ||
         row.employee.id.toLowerCase().includes(query.toLowerCase())),
   );
-  if (!period) return <><PageHeading title="ยังไม่มีข้อมูลเดือนนี้" description={`${months[selectedMonth - 1] || "เดือนที่เลือก"} ${selectedYear}`} action={<Link href="/import" className="button button-primary">นำเข้า Excel</Link>} /></>;
+  if (!period)
+    return (
+      <>
+        <PageHeading
+          title="ยังไม่มีข้อมูลเดือนนี้"
+          description={`${months[selectedMonth - 1] || "เดือนที่เลือก"} ${selectedYear}`}
+          action={
+            <Link href="/import" className="button button-primary">
+              นำเข้า Excel
+            </Link>
+          }
+        />
+      </>
+    );
   return (
     <>
       <div className="backline">
@@ -761,7 +885,11 @@ function MonthDetail({
       </div>
       <PageHeading
         title={`${months[selectedMonth - 1]} ${selectedYear}`}
-        description={period.paymentDate ? `งวดจ่าย ${thaiDate(period.paymentDate)} · ข้อมูลรายเดือน` : "ข้อมูลรายเดือน"}
+        description={
+          period.paymentDate
+            ? `งวดจ่าย ${thaiDate(period.paymentDate)} · ข้อมูลรายเดือน`
+            : "ข้อมูลรายเดือน"
+        }
         action={
           <>
             <SelectYear year={year} onChange={setYear} />
@@ -893,397 +1021,6 @@ function MonthDetail({
   );
 }
 
-const importSteps = [
-  { name: "เลือกไฟล์", href: "/import" },
-  { name: "ตรวจพบข้อมูล", href: "/import/preview" },
-  { name: "จับคู่ข้อมูล", href: "/import/mapping" },
-  { name: "ตรวจสอบ", href: "/import/validation" },
-  { name: "เสร็จสิ้น", href: "/import/complete" },
-];
-
-function ImportFrame({
-  step,
-  children,
-  title,
-  description,
-}: {
-  step: number;
-  children: ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <>
-      <PageHeading title={title} description={description} />
-      <div className="stepper" aria-label="ขั้นตอนการนำเข้า">
-        {importSteps.map((item, index) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`step ${index === step ? "current" : ""} ${index < step ? "done" : ""}`}
-          >
-            <span className="step-number">
-              {index < step ? <Check size={13} /> : index + 1}
-            </span>
-            <span>{item.name}</span>
-          </Link>
-        ))}
-      </div>
-      <div className="import-content">{children}</div>
-    </>
-  );
-}
-
-function ImportUpload() {
-  const router = useRouter();
-  const [file, setFile] = useState<File | null>(null);
-  return (
-    <ImportFrame
-      step={0}
-      title="นำเข้าข้อมูลเงินเดือน"
-      description="อัปโหลด Excel รายเดือน แล้วตรวจข้อมูลก่อนบันทึก"
-    >
-      <div className="import-panel">
-        <div className="panel-title">
-          <h2>เลือกไฟล์รายเดือน</h2>
-          <p>ระบบจะอ่านข้อมูลจากชีตคำนวณเงินเดือนที่คุณยืนยัน</p>
-        </div>
-        <label
-          className="dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const picked = e.dataTransfer.files[0];
-            if (picked?.name.toLowerCase().endsWith(".xlsx")) setFile(picked);
-          }}
-        >
-          <span className="upload-icon">
-            <FileSpreadsheet size={25} strokeWidth={1.7} />
-          </span>
-          <strong>{file ? file.name : "ลากไฟล์ Excel มาวางที่นี่"}</strong>
-          <span>
-            {file
-              ? `${(file.size / 1024).toFixed(0)} KB · พร้อมตรวจตัวอย่าง`
-              : "หรือคลิกเพื่อเลือกไฟล์จากเครื่อง"}
-          </span>
-          <span className="dropzone-button">เลือกไฟล์ .xlsx</span>
-          <input
-            type="file"
-            accept=".xlsx"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-          />
-        </label>
-        <div className="hint-box">
-          <CircleAlert size={18} />
-          <p>
-            หน้าจอนี้เป็นต้นแบบการใช้งาน
-            ไฟล์ที่เลือกยังไม่ถูกส่งหรือบันทึกในระบบ การอ่าน Excel จริงจะเพิ่มใน
-            session นำเข้าข้อมูล
-          </p>
-        </div>
-        <div className="panel-actions">
-          <Link href="/" className="button button-secondary">
-            ยกเลิก
-          </Link>
-          <button
-            className="button button-primary"
-            disabled={!file}
-            onClick={() => router.push("/import/preview")}
-          >
-            ดูตัวอย่างขั้นตอนถัดไป <ArrowRight size={17} />
-          </button>
-        </div>
-      </div>
-    </ImportFrame>
-  );
-}
-
-function ImportPreview() {
-  const [sheet, setSheet] = useState("คิดค่าจ้าง");
-  return (
-    <ImportFrame
-      step={1}
-      title="ตรวจพบข้อมูลในไฟล์"
-      description="ยืนยันงวดและชีตต้นทางก่อนจับคู่คอลัมน์"
-    >
-      <div className="import-panel">
-        <div className="panel-title">
-          <h2>ตรวจพบจากไฟล์ตัวอย่าง</h2>
-          <p>เดือน 9.xlsx · ข้อมูลตัวอย่างเพื่อแสดงลำดับการทำงาน</p>
-        </div>
-        <div className="detected-grid">
-          <div>
-            <span>งวดเดือน</span>
-            <strong>กันยายน 2569</strong>
-          </div>
-          <div>
-            <span>วันที่จ่าย</span>
-            <strong>5 ตุลาคม 2569</strong>
-          </div>
-          <div>
-            <span>จำนวนพนักงาน</span>
-            <strong>8 รายการ</strong>
-          </div>
-          <div>
-            <span>ประเภทข้อมูล</span>
-            <strong>พนักงานและกรรมการ</strong>
-          </div>
-        </div>
-        <div className="field-group">
-          <label htmlFor="source-sheet">ชีตต้นทางสำหรับงวดนี้</label>
-          <select
-            id="source-sheet"
-            value={sheet}
-            onChange={(e) => setSheet(e.target.value)}
-          >
-            <option>คิดค่าจ้าง</option>
-            <option>ปรับปรุง</option>
-            <option>ไม่รวมปีใหม่</option>
-          </select>
-          <small>
-            ไฟล์นี้มีหลายชีตที่ระบุคนละงวด โปรดยืนยันชีตที่ถูกต้องก่อนดำเนินการ
-          </small>
-        </div>
-        {sheet !== "คิดค่าจ้าง" && (
-          <div className="warning-box">
-            <CircleAlert size={18} />
-            ชีตนี้มีหัวกระดาษเป็นเดือนธันวาคม โปรดตรวจงวดก่อนดำเนินการ
-          </div>
-        )}
-        <div className="panel-actions">
-          <Link href="/import" className="button button-secondary">
-            <ArrowLeft size={16} />
-            ย้อนกลับ
-          </Link>
-          <Link href="/import/mapping" className="button button-primary">
-            ยืนยันชีตและไปต่อ <ArrowRight size={17} />
-          </Link>
-        </div>
-      </div>
-    </ImportFrame>
-  );
-}
-
-function ImportMapping() {
-  const [unknown, setUnknown] = useState("สร้างรายการรายได้ใหม่");
-  const mappings = [
-    ["ค่าจ้าง", "เงินเดือน", "รายได้"],
-    ["ค่าล่วงเวลาปกติ x 1.5", "OT 1.5", "รายได้"],
-    ["ค่าทำงานในวันหยุด", "ค่าทำงานวันหยุด", "รายได้"],
-    ["เบี้ยขยัน", "เบี้ยขยัน", "รายได้"],
-    ["ประกันสังคม", "ประกันสังคม", "รายการหัก"],
-    ["ภาษี ภงด.1", "ภาษี", "รายการหัก"],
-  ];
-  return (
-    <ImportFrame
-      step={2}
-      title="จับคู่ข้อมูล"
-      description="ตรวจว่าหัวคอลัมน์ใน Excel ตรงกับรายการในระบบ"
-    >
-      <div className="import-panel">
-        <div className="panel-title">
-          <h2>รายการที่ตรวจพบ</h2>
-          <p>ระบบจะจำการจับคู่ที่ยืนยันไว้สำหรับเดือนถัดไป</p>
-        </div>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>หัวคอลัมน์ใน Excel</th>
-                <th>รายการในระบบ</th>
-                <th>ประเภท</th>
-                <th>สถานะ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mappings.map(([source, target, type]) => (
-                <tr key={source}>
-                  <td>{source}</td>
-                  <td>{target}</td>
-                  <td>{type}</td>
-                  <td>
-                    <Status>จับคู่อัตโนมัติ</Status>
-                  </td>
-                </tr>
-              ))}
-              <tr>
-                <td>ค่าพิเศษ</td>
-                <td>
-                  <select
-                    value={unknown}
-                    onChange={(e) => setUnknown(e.target.value)}
-                  >
-                    <option>สร้างรายการรายได้ใหม่</option>
-                    <option>จับคู่กับรายได้อื่น</option>
-                    <option>ไม่นำเข้าคอลัมน์นี้</option>
-                  </select>
-                </td>
-                <td>รอยืนยัน</td>
-                <td>
-                  <Status tone="amber">ต้องตรวจสอบ</Status>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="mapping-note">
-          <CircleAlert size={18} />
-          <div>
-            <strong>พนักงานใหม่หรือชื่อไม่ตรงกัน</strong>
-            <p>
-              ระบบจะให้จับคู่กับรหัสพนักงานที่มี หรือสร้างรหัสใหม่ก่อนบันทึกจริง
-            </p>
-          </div>
-        </div>
-        <div className="panel-actions">
-          <Link href="/import/preview" className="button button-secondary">
-            <ArrowLeft size={16} />
-            ย้อนกลับ
-          </Link>
-          <Link href="/import/validation" className="button button-primary">
-            ตรวจสอบข้อมูล <ArrowRight size={17} />
-          </Link>
-        </div>
-      </div>
-    </ImportFrame>
-  );
-}
-
-function ImportValidation() {
-  const { payrollForMonth } = usePayrollData();
-  const rows = payrollForMonth(9);
-  return (
-    <ImportFrame
-      step={3}
-      title="ตรวจสอบก่อนนำเข้า"
-      description="เปรียบเทียบยอดและแก้รายการที่ต้องตรวจสอบ"
-    >
-      <div className="import-panel import-panel-wide">
-        <div className="validation-summary">
-          <div className="validation-good">
-            <CircleCheck size={21} />
-            <div>
-              <strong>ผ่านการตรวจสอบ 8 รายการ</strong>
-              <span>ไม่พบข้อผิดพลาดที่ขัดขวางการบันทึก</span>
-            </div>
-          </div>
-          <div className="validation-count">
-            <span>
-              คำเตือน <strong>1</strong>
-            </span>
-            <span>
-              ข้อผิดพลาด <strong>0</strong>
-            </span>
-          </div>
-        </div>
-        <div className="hint-box">
-          <CircleAlert size={18} />
-          <p>
-            ข้อมูลด้านล่างเป็นข้อมูลสมมติสำหรับต้นแบบ
-            ยังไม่ใช่ผลจากไฟล์ที่อัปโหลด
-          </p>
-        </div>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>พนักงาน</th>
-                <th className="numeric">เงินเดือน</th>
-                <th className="numeric">OT</th>
-                <th className="numeric">รายได้อื่น</th>
-                <th className="numeric">รายการหัก</th>
-                <th className="numeric">สุทธิ</th>
-                <th>สถานะ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.employee.id}>
-                  <td>
-                    {row.employee.name}
-                    <small className="cell-subtext">{row.employee.id}</small>
-                  </td>
-                  <MoneyCell value={row.salary} />
-                  <MoneyCell value={row.ot} />
-                  <MoneyCell value={row.allowance + row.bonus} />
-                  <MoneyCell value={row.deductions} />
-                  <MoneyCell value={row.net} />
-                  <td>
-                    <Status>ถูกต้อง</Status>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="confirm-bar">
-          <div>
-            <span>สรุปงวดกันยายน 2569</span>
-            <strong>เงินสุทธิรวม ฿{money(sum(rows, "net"))}</strong>
-          </div>
-          <div className="panel-actions">
-            <Link href="/import/mapping" className="button button-secondary">
-              <ArrowLeft size={16} />
-              ย้อนกลับ
-            </Link>
-            <Link href="/import/complete" className="button button-primary">
-              ดูผลตัวอย่าง <ArrowRight size={17} />
-            </Link>
-          </div>
-        </div>
-      </div>
-    </ImportFrame>
-  );
-}
-
-function ImportComplete() {
-  const { payrollForMonth } = usePayrollData();
-  return (
-    <ImportFrame
-      step={4}
-      title="ตัวอย่างผลการนำเข้า"
-      description="หน้าจอที่จะปรากฏหลังบันทึกข้อมูลสำเร็จ"
-    >
-      <div className="import-panel complete-panel">
-        <div className="complete-mark">
-          <Check size={26} />
-        </div>
-        <h2>พร้อมใช้งานในรายงาน</h2>
-        <p>ตัวอย่าง: กันยายน 2569 · พนักงาน 8 รายการ</p>
-        <div className="complete-detail">
-          <div>
-            <span>งวดข้อมูล</span>
-            <strong>กันยายน 2569</strong>
-          </div>
-          <div>
-            <span>เงินสุทธิ</span>
-            <strong>฿{money(sum(payrollForMonth(9), "net"))}</strong>
-          </div>
-          <div>
-            <span>สถานะ</span>
-            <Status>ตรวจสอบแล้ว</Status>
-          </div>
-        </div>
-        <div className="hint-box">
-          <CircleAlert size={18} />
-          <p>
-            นี่เป็นผลตัวอย่างของขั้นตอนนำเข้า
-            ยังไม่มีข้อมูลใดถูกบันทึกลงฐานข้อมูล
-          </p>
-        </div>
-        <div className="complete-actions">
-          <Link href="/monthly/2569/09" className="button button-primary">
-            ดูงวดตัวอย่าง <ArrowRight size={17} />
-          </Link>
-          <Link href="/" className="button button-secondary">
-            กลับภาพรวม
-          </Link>
-        </div>
-      </div>
-    </ImportFrame>
-  );
-}
-
 function AnnualEmployeeReport({
   year,
   setYear,
@@ -1298,7 +1035,9 @@ function AnnualEmployeeReport({
   const [showEmpty, setShowEmpty] = useState(false);
   const employee =
     employees.find((item) => item.id === employeeId) || employees[0];
-  const monthly = Array.from({ length: 12 }, (_, index) => payrollForMonth(index + 1).find((row) => row.employee.id === employeeId));
+  const monthly = Array.from({ length: 12 }, (_, index) =>
+    payrollForMonth(index + 1).find((row) => row.employee.id === employeeId),
+  );
   const incomeItems: { label: string; key: keyof PayrollRow }[] = [
     { label: "เงินเดือน", key: "salary" },
     { label: "ค่าล่วงเวลา", key: "ot" },
@@ -1327,7 +1066,25 @@ function AnnualEmployeeReport({
       </tr>
     );
   };
-  if (!employee) return <><PageHeading title="รายงานรายปีรายพนักงาน" description="ยังไม่มีพนักงานในระบบ" action={<SelectYear year={year} onChange={setYear} />} /><div className="guide-card"><h2>เริ่มจากข้อมูลรายเดือน</h2><p>นำเข้า Excel รายเดือนเพื่อสร้างข้อมูลพนักงานและรายงานรายปีอัตโนมัติ</p><Link href="/import" className="button button-primary">นำเข้า Excel</Link></div></>;
+  if (!employee)
+    return (
+      <>
+        <PageHeading
+          title="รายงานรายปีรายพนักงาน"
+          description="ยังไม่มีพนักงานในระบบ"
+          action={<SelectYear year={year} onChange={setYear} />}
+        />
+        <div className="guide-card">
+          <h2>เริ่มจากข้อมูลรายเดือน</h2>
+          <p>
+            นำเข้า Excel รายเดือนเพื่อสร้างข้อมูลพนักงานและรายงานรายปีอัตโนมัติ
+          </p>
+          <Link href="/import" className="button button-primary">
+            นำเข้า Excel
+          </Link>
+        </div>
+      </>
+    );
   return (
     <>
       <PageHeading
@@ -1609,7 +1366,11 @@ function CompanyReport({
                   <tr key={name}>
                     <td>
                       <Link
-                         href={hasData ? `/monthly/${year}/${String(index + 1).padStart(2, "0")}` : "/import"}
+                        href={
+                          hasData
+                            ? `/monthly/${year}/${String(index + 1).padStart(2, "0")}`
+                            : "/import"
+                        }
                         className="table-primary-link"
                       >
                         {name}
@@ -1656,16 +1417,22 @@ function CompanyReport({
                 <td>รวมปี</td>
                 <MoneyCell
                   value={
-                     imported
-                       ? totals.flat().filter((row) => row.employee.type === "employee").reduce((a, b) => a + b.salary, 0)
-                       : null
+                    imported
+                      ? totals
+                          .flat()
+                          .filter((row) => row.employee.type === "employee")
+                          .reduce((a, b) => a + b.salary, 0)
+                      : null
                   }
                 />
                 <MoneyCell
                   value={
-                     imported
-                       ? totals.flat().filter((row) => row.employee.type === "director").reduce((a, b) => a + b.salary, 0)
-                       : null
+                    imported
+                      ? totals
+                          .flat()
+                          .filter((row) => row.employee.type === "director")
+                          .reduce((a, b) => a + b.salary, 0)
+                      : null
                   }
                 />
                 <MoneyCell value={imported ? annualTotal("ot") : null} />
@@ -1781,7 +1548,15 @@ function EmployeesPage({
                 <td>{thaiDate(employee.startDate)}</td>
                 <MoneyCell value={employee.salary} />
                 <td>
-                  <Status tone={employee.status === "active" ? "green" : "gray"}>{employee.status === "active" ? "ปฏิบัติงาน" : employee.status === "resigned" ? "ลาออก" : "ไม่ปฏิบัติงาน"}</Status>
+                  <Status
+                    tone={employee.status === "active" ? "green" : "gray"}
+                  >
+                    {employee.status === "active"
+                      ? "ปฏิบัติงาน"
+                      : employee.status === "resigned"
+                        ? "ลาออก"
+                        : "ไม่ปฏิบัติงาน"}
+                  </Status>
                 </td>
                 <td className="row-arrow">
                   <ChevronRight size={16} />
@@ -1791,7 +1566,102 @@ function EmployeesPage({
           </tbody>
         </table>
       </div>
-      {open && <div className="modal-backdrop" onClick={() => setOpen(false)}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="employee-modal-title" onClick={e => e.stopPropagation()}><div className="modal-heading"><div><h2 id="employee-modal-title">เพิ่มพนักงาน</h2><p>สร้างรหัสพนักงานใหม่ในฐานข้อมูล</p></div><IconButton label="ปิด" onClick={() => setOpen(false)}><X size={19} /></IconButton></div><form className="form-grid" onSubmit={async e => { e.preventDefault(); setFormError(""); const form = new FormData(e.currentTarget); try { await postJson("/api/employees", { name: form.get("name"), type: form.get("type"), position: form.get("position"), department: form.get("department"), startDate: form.get("date") || undefined, salary: toSatang(String(form.get("salary"))) }); await refresh(); setOpen(false); } catch (error) { setFormError(error instanceof Error ? error.message : "บันทึกไม่สำเร็จ"); } }}><label className="full-field">ชื่อ-สกุล<input name="name" required minLength={2} /></label><label>ประเภท<select name="type"><option value="employee">พนักงาน</option><option value="director">กรรมการ</option></select></label><label>วันที่เริ่มงาน<input name="date" type="date" /></label><label>ตำแหน่ง<input name="position" /></label><label>แผนก<input name="department" /></label><label className="full-field">เงินเดือนปัจจุบัน (บาท)<input name="salary" type="number" min="0" step="0.01" required /></label>{formError && <div className="login-error full-field" role="alert">{formError}</div>}<div className="modal-actions"><button type="button" className="button button-secondary" onClick={() => setOpen(false)}>ยกเลิก</button><button type="submit" className="button button-primary">บันทึกพนักงาน</button></div></form></div></div>}
+      {open && (
+        <div className="modal-backdrop" onClick={() => setOpen(false)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="employee-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-heading">
+              <div>
+                <h2 id="employee-modal-title">เพิ่มพนักงาน</h2>
+                <p>สร้างรหัสพนักงานใหม่ในฐานข้อมูล</p>
+              </div>
+              <IconButton label="ปิด" onClick={() => setOpen(false)}>
+                <X size={19} />
+              </IconButton>
+            </div>
+            <form
+              className="form-grid"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setFormError("");
+                const form = new FormData(e.currentTarget);
+                try {
+                  await postJson("/api/employees", {
+                    name: form.get("name"),
+                    type: form.get("type"),
+                    position: form.get("position"),
+                    department: form.get("department"),
+                    startDate: form.get("date") || undefined,
+                    salary: toSatang(String(form.get("salary"))),
+                  });
+                  await refresh();
+                  setOpen(false);
+                } catch (error) {
+                  setFormError(
+                    error instanceof Error ? error.message : "บันทึกไม่สำเร็จ",
+                  );
+                }
+              }}
+            >
+              <label className="full-field">
+                ชื่อ-สกุล
+                <input name="name" required minLength={2} />
+              </label>
+              <label>
+                ประเภท
+                <select name="type">
+                  <option value="employee">พนักงาน</option>
+                  <option value="director">กรรมการ</option>
+                </select>
+              </label>
+              <label>
+                วันที่เริ่มงาน
+                <input name="date" type="date" />
+              </label>
+              <label>
+                ตำแหน่ง
+                <input name="position" />
+              </label>
+              <label>
+                แผนก
+                <input name="department" />
+              </label>
+              <label className="full-field">
+                เงินเดือนปัจจุบัน (บาท)
+                <input
+                  name="salary"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                />
+              </label>
+              {formError && (
+                <div className="login-error full-field" role="alert">
+                  {formError}
+                </div>
+              )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setOpen(false)}
+                >
+                  ยกเลิก
+                </button>
+                <button type="submit" className="button button-primary">
+                  บันทึกพนักงาน
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -2114,10 +1984,21 @@ function LeavePage() {
                 setFormError("");
                 const form = new FormData(e.currentTarget);
                 try {
-                  await postJson("/api/leave", { employeeId: form.get("employee"), dateFrom: form.get("date"), dateTo: form.get("dateTo"), type: form.get("type"), days: Number(form.get("days")), reason: form.get("reason") });
+                  await postJson("/api/leave", {
+                    employeeId: form.get("employee"),
+                    dateFrom: form.get("date"),
+                    dateTo: form.get("dateTo"),
+                    type: form.get("type"),
+                    days: Number(form.get("days")),
+                    reason: form.get("reason"),
+                  });
                   await refresh();
                   setOpen(false);
-                } catch (error) { setFormError(error instanceof Error ? error.message : "บันทึกไม่สำเร็จ"); }
+                } catch (error) {
+                  setFormError(
+                    error instanceof Error ? error.message : "บันทึกไม่สำเร็จ",
+                  );
+                }
               }}
               className="form-grid"
             >
@@ -2145,7 +2026,10 @@ function LeavePage() {
                 วันที่เริ่ม
                 <input name="date" type="date" required />
               </label>
-              <label>วันที่สิ้นสุด<input name="dateTo" type="date" required /></label>
+              <label>
+                วันที่สิ้นสุด
+                <input name="dateTo" type="date" required />
+              </label>
               <label>
                 จำนวนวัน
                 <input
@@ -2161,7 +2045,11 @@ function LeavePage() {
                 เหตุผล
                 <input name="reason" required placeholder="ระบุเหตุผล" />
               </label>
-              {formError && <div className="login-error full-field" role="alert">{formError}</div>}
+              {formError && (
+                <div className="login-error full-field" role="alert">
+                  {formError}
+                </div>
+              )}
               <div className="modal-actions">
                 <button
                   type="button"
@@ -2183,7 +2071,12 @@ function LeavePage() {
 }
 
 function SalaryPage() {
-  const { employees, salaryAdjustments: records, refresh, user } = usePayrollData();
+  const {
+    employees,
+    salaryAdjustments: records,
+    refresh,
+    user,
+  } = usePayrollData();
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [selectedId, setSelectedId] = useState(employees[0]?.id || "");
@@ -2276,11 +2169,20 @@ function SalaryPage() {
                 setFormError("");
                 const form = new FormData(e.currentTarget);
                 try {
-                  await postJson("/api/salary", { employeeId: selectedId, effectiveDate: form.get("date"), newSalary: amount, reason: form.get("reason") });
+                  await postJson("/api/salary", {
+                    employeeId: selectedId,
+                    effectiveDate: form.get("date"),
+                    newSalary: amount,
+                    reason: form.get("reason"),
+                  });
                   await refresh();
                   setOpen(false);
                   setNewSalary("");
-                } catch (error) { setFormError(error instanceof Error ? error.message : "บันทึกไม่สำเร็จ"); }
+                } catch (error) {
+                  setFormError(
+                    error instanceof Error ? error.message : "บันทึกไม่สำเร็จ",
+                  );
+                }
               }}
               className="form-grid"
             >
@@ -2330,7 +2232,11 @@ function SalaryPage() {
                 หมายเหตุ
                 <input name="reason" placeholder="เช่น ปรับประจำปี" required />
               </label>
-              {formError && <div className="login-error full-field" role="alert">{formError}</div>}
+              {formError && (
+                <div className="login-error full-field" role="alert">
+                  {formError}
+                </div>
+              )}
               <div className="modal-actions">
                 <button
                   type="button"
@@ -2365,7 +2271,12 @@ function ImportHistory() {
           </Link>
         }
       />
-      {imports.length === 0 && <div className="hint-box history-hint"><CircleAlert size={18} /><p>ยังไม่มีประวัติการนำเข้า เริ่มจากไฟล์เงินเดือนรายเดือน</p></div>}
+      {imports.length === 0 && (
+        <div className="hint-box history-hint">
+          <CircleAlert size={18} />
+          <p>ยังไม่มีประวัติการนำเข้า เริ่มจากไฟล์เงินเดือนรายเดือน</p>
+        </div>
+      )}
       <div className="table-wrap">
         <table>
           <thead>
@@ -2376,6 +2287,7 @@ function ImportHistory() {
               <th>วันที่นำเข้า</th>
               <th className="numeric">พนักงาน</th>
               <th>สถานะ</th>
+              <th>ดาวน์โหลด</th>
               <th></th>
             </tr>
           </thead>
@@ -2383,7 +2295,10 @@ function ImportHistory() {
             {imports.map((item) => (
               <tr key={item.id}>
                 <td>
-                  <Link href={`/monthly/${item.year + 543}/${String(item.month).padStart(2, "0")}`} className="table-primary-link">
+                  <Link
+                    href={`/monthly/${item.year + 543}/${String(item.month).padStart(2, "0")}`}
+                    className="table-primary-link"
+                  >
                     {months[item.month - 1]} {item.year + 543}
                   </Link>
                 </td>
@@ -2392,8 +2307,11 @@ function ImportHistory() {
                 <td>{new Date(item.importedAt).toLocaleDateString("th-TH")}</td>
                 <td className="numeric">{item.employeeCount}</td>
                 <td>
-                  <Status tone={item.status === "active" ? "green" : "gray"}>{item.status === "active" ? "ใช้งานอยู่" : "แทนที่แล้ว"}</Status>
+                  <Status tone={item.status === "active" ? "green" : "gray"}>
+                    {item.status === "active" ? "ใช้งานอยู่" : "แทนที่แล้ว"}
+                  </Status>
                 </td>
+                <td><a className="text-link" href={`/api/import/files/${item.id}`}>ไฟล์ต้นฉบับ</a></td>
                 <td className="row-arrow">
                   <ChevronRight size={16} />
                 </td>
@@ -2474,7 +2392,9 @@ function SettingsPage() {
                       <td>{item.label}</td>
                       <td>{item.kind === "income" ? "รายได้" : "รายการหัก"}</td>
                       <td>
-                        <Status tone={item.active ? "green" : "gray"}>{item.active ? "ใช้งาน" : "ปิดใช้งาน"}</Status>
+                        <Status tone={item.active ? "green" : "gray"}>
+                          {item.active ? "ใช้งาน" : "ปิดใช้งาน"}
+                        </Status>
                       </td>
                     </tr>
                   ))}
@@ -2514,7 +2434,7 @@ function SettingsPage() {
           <div className="detail-list">
             <div>
               <span>ชื่อบริษัท</span>
-               <strong>{company?.name || "—"}</strong>
+              <strong>{company?.name || "—"}</strong>
             </div>
             <div>
               <span>ปีบัญชีที่แสดง</span>
