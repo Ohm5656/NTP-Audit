@@ -241,19 +241,6 @@ function NavLink({
   );
 }
 
-function CompanySwitch() {
-  const { company } = usePayrollData();
-  return (
-    <div className="company-switch">
-      <span className="company-monogram">N</span>
-      <div>
-        <strong>{company?.name || "NTP Electric and Engineering Co., Ltd."}</strong>
-        <small>ระบบภายในบริษัท</small>
-      </div>
-    </div>
-  );
-}
-
 export default function Workspace({ user }: { user?: AppUser }) {
   const pathname = usePathname() || "/";
   const [year, setYear] = useState(
@@ -329,7 +316,6 @@ export default function Workspace({ user }: { user?: AppUser }) {
                 <X size={19} />
               </IconButton>
             </div>
-            <CompanySwitch />
             <nav aria-label="เมนูหลัก">
               <p className="nav-caption">งานประจำ</p>
               {mainNav.filter((item) => user?.role !== "viewer" || !["/leave", "/salary"].includes(item.href)).map((item) => (
@@ -517,10 +503,6 @@ function Dashboard({
       (period) => period.year === Number(year) - 543 && period.activeImportId,
     )
     .sort((a, b) => b.month - a.month)[0];
-  const rows = latest ? payrollForMonth(latest.month) : [];
-  const latestHref = latest
-    ? `/monthly/${year}/${String(latest.month).padStart(2, "0")}`
-    : user?.role === "viewer" ? "/reports/company" : "/import";
   return (
     <>
       <PageHeading
@@ -610,98 +592,6 @@ function Dashboard({
           value={`${employees.length} คน`}
           hint={`พนักงาน ${employees.filter((e) => e.type === "employee").length} · กรรมการ ${employees.filter((e) => e.type === "director").length}`}
         />
-      </div>
-      <div className="two-column">
-        <Section
-          title="งวดล่าสุด"
-          action={
-            <Link className="text-link" href={latestHref}>
-              ดูรายละเอียด <ArrowRight size={15} />
-            </Link>
-          }
-        >
-          <div className="latest-period">
-            <div className="latest-main">
-              <div>
-                <strong>
-                  {latest
-                    ? `${months[latest.month - 1]} ${year}`
-                    : "ยังไม่มีงวดข้อมูล"}
-                </strong>
-                <p>
-                  {latest
-                    ? `บันทึกข้อมูล ${rows.length} รายการ`
-                    : "เริ่มด้วยการนำเข้า Excel รายเดือน"}
-                </p>
-              </div>
-              <Status tone={latest ? "green" : "gray"}>
-                {latest ? "นำเข้าแล้ว" : "รอนำเข้า"}
-              </Status>
-            </div>
-            <div className="latest-numbers">
-              <div>
-                <span>รายได้รวม</span>
-                <strong>
-                  {latest ? `฿${money(sum(rows, "gross"))}` : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>รายการหัก</span>
-                <strong>
-                  {latest ? `฿${money(sum(rows, "deductions"))}` : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>เงินสุทธิ</span>
-                <strong className="green-text">
-                  {latest ? `฿${money(sum(rows, "net"))}` : "—"}
-                </strong>
-              </div>
-            </div>
-          </div>
-        </Section>
-        <Section
-          title="งานที่ต้องติดตาม"
-          action={
-            <Link className="text-link" href="/imports">
-              ประวัตินำเข้า <ArrowRight size={15} />
-            </Link>
-          }
-        >
-          <div className="task-list">
-            <div className="task-item">
-              <span className="task-icon amber">
-                <CircleAlert size={17} />
-              </span>
-              <div>
-                <strong>
-                  {coverage < 12
-                    ? `เดือน${months.find((_, index) => !periods.some((period) => period.year === Number(year) - 543 && period.month === index + 1 && period.activeImportId)) || "ถัดไป"}ยังไม่มีข้อมูล`
-                    : "ข้อมูลครบทั้งปีแล้ว"}
-                </strong>
-                <small>เมื่อปิดงวดแล้วให้นำเข้าไฟล์ Excel</small>
-              </div>
-              {user?.role !== "viewer" && <Link href="/import">นำเข้า</Link>}
-            </div>
-            <div className="task-item">
-              <span className="task-icon green">
-                <CircleCheck size={17} />
-              </span>
-              <div>
-                <strong>
-                  {latest
-                    ? `งวด${months[latest.month - 1]}พร้อมใช้ในรายงาน`
-                    : "รอการนำเข้างวดแรก"}
-                </strong>
-                <small>
-                  {latest
-                    ? "ข้อมูลมาจากฐานข้อมูลที่บันทึกแล้ว"
-                    : "รายงานจะอัปเดตหลังยืนยันนำเข้า"}
-                </small>
-              </div>
-            </div>
-          </div>
-        </Section>
       </div>
       <Section
         title="แนวโน้มเงินจ่ายสุทธิ"
@@ -1694,6 +1584,9 @@ function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnua
   const monthly = entries
     .filter((entry) => entry.employeeDbId === employee?.dbId)
     .sort((a, b) => b.year - a.year || b.month - a.month)[0];
+  const employeeLeaves = leaveRecords.filter((item) => item.employeeId === id).sort((a, b) => b.date.localeCompare(a.date));
+  const leaveTotals = employeeLeaves.reduce<Record<string, number>>((totals, item) => ({ ...totals, [item.type]: (totals[item.type] || 0) + item.days }), {});
+  const employeeAdjustments = salaryAdjustments.filter((item) => item.employeeId === id).sort((a, b) => b.date.localeCompare(a.date));
   const tenureText = employee?.startDate ? (() => { const start = new Date(employee.startDate); const now = new Date(); let monthsWorked = (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth(); if (now.getDate() < start.getDate()) monthsWorked--; return `${Math.max(0, Math.floor(monthsWorked / 12))} \u0e1b\u0e35 ${Math.max(0, monthsWorked % 12)} \u0e40\u0e14\u0e37\u0e2d\u0e19`; })() : "\u2014";
   if (!employee)
     return (
@@ -1841,47 +1734,8 @@ function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnua
           </div>
         </Section>
       )}
-      {tab === "leave" && (
-        <Section title="ประวัติการลา">
-          <div className="compact-list">
-            {leaveRecords
-              .filter((item) => item.employeeId === id)
-              .map((item) => (
-                <div key={item.id}>
-                  <span>
-                    {thaiDate(item.date)} · {item.type} · {item.reason}
-                  </span>
-                  <strong>{item.days} วัน</strong>
-                </div>
-              ))}
-            {!leaveRecords.some((item) => item.employeeId === id) && (
-              <p className="empty-inline">ยังไม่มีบันทึกการลา</p>
-            )}
-          </div>
-        </Section>
-      )}
-      {tab === "salary" && (
-        <Section title="ประวัติปรับเงินเดือน">
-          <div className="compact-list">
-            {salaryAdjustments
-              .filter((item) => item.employeeId === id)
-              .map((item) => (
-                <div key={item.id}>
-                  <span>
-                    {thaiDate(item.date)} · {item.reason}
-                  </span>
-                  <strong>
-                    ฿{money(item.oldSalary)} → ฿{money(item.newSalary)}
-                  </strong>
-                </div>
-              ))}
-            {!salaryAdjustments.some((item) => item.employeeId === id) && (
-              <p className="empty-inline">ยังไม่มีประวัติการปรับเงินเดือน</p>
-            )}
-          </div>
-        </Section>
-      )}
-      {tab === "documents" && (
+      {tab === "leave" && (<Section title="ประวัติการลา" action={<span className="section-subtle">{employeeLeaves.length} รายการ</span>}>{employeeLeaves.length ? <><div className="history-summary">{Object.entries(leaveTotals).map(([type, days]) => <div key={type}><strong>{days}</strong><span>{type}</span></div>)}</div><div className="history-table-wrap"><table className="history-table"><thead><tr><th>วันที่</th><th>ประเภท</th><th>เหตุผล</th><th className="numeric">จำนวนวัน</th></tr></thead><tbody>{employeeLeaves.map((item) => <tr key={item.id}><td>{thaiDate(item.date)}</td><td><span className="history-tag">{item.type}</span></td><td>{item.reason || "—"}</td><td className="numeric history-value">{item.days.toFixed(2)}</td></tr>)}</tbody></table></div></> : <p className="empty-inline">ยังไม่มีบันทึกการลา</p>}</Section>)}
+      {tab === "salary" && (<Section title="ประวัติปรับเงินเดือน" action={<span className="section-subtle">{employeeAdjustments.length} รายการ</span>}>{employeeAdjustments.length ? <div className="salary-history">{employeeAdjustments.map((item) => { const change = item.newSalary - item.oldSalary; const percent = item.oldSalary ? (change / item.oldSalary) * 100 : 0; return <article className="salary-history-row" key={item.id}><div className="salary-history-date">{thaiDate(item.date)}</div><div className="salary-history-amount"><strong>฿{money(item.oldSalary)}</strong><span>→</span><strong>฿{money(item.newSalary)}</strong></div><div><span className="salary-change">{change >= 0 ? "+" : ""}฿{money(change)} · {percent >= 0 ? "+" : ""}{percent.toFixed(1)}%</span><p>{item.reason || "ไม่มีหมายเหตุ"}</p></div></article>; })}</div> : <p className="empty-inline">ยังไม่มีประวัติการปรับเงินเดือน</p>}</Section>)}      {tab === "documents" && (
         <Section title="ข้อมูลและเอกสาร">
           <div className="sensitive-panel">
             <CircleAlert size={19} />
