@@ -71,7 +71,10 @@ export function money(satang: number, digits = 2): string {
 }
 
 export function thaiDate(iso: string): string {
-  return new Intl.DateTimeFormat("th-TH-u-ca-buddhist", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00`));
+  if (!iso) return "—";
+  const date = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("th-TH-u-ca-buddhist", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
 export const leaveRecords = [
