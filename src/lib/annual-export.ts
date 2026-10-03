@@ -9,6 +9,7 @@ export type AnnualExportInput = {
   leaveHeaderCodes: Record<string, "personal" | "vacation" | "sick" | "unpaid" | "absence">;
   leaveDateHeaderKeys: string[];
   labels: { employeeTitle: string; adjustmentTitle: string; companySummaryTitle: string; hireDate: string };
+  summary: Array<{ month: number; employeeGross: number; directorGross: number; employeeBonus: number; directorBonus: number; total: number }>;
   employees: Array<{
     code: string;
     fullName: string;
@@ -55,6 +56,28 @@ export async function getAnnualExportInput(companyId: string, year: number): Pro
   for (const row of adjustments.rows) adjustmentsByEmployee.set(row.employee_id, [...(adjustmentsByEmployee.get(row.employee_id) || []), row]);
   const itemHeaderCodes: Record<string, string> = {};
   for (const type of types.rows) for (const label of [type.label, ...(type.aliases || [])]) itemHeaderCodes[normalizeHeader(label)] = type.code;
+  const bonusCodes = new Set(types.rows.filter((type) => [type.label, ...(type.aliases || [])].some((label) => normalizeHeader(label).includes(normalizeHeader("โบนัส")))).map((type) => type.code));
+  const exportEmployees = employees.rows.map((employee) => ({
+    code: employee.code, fullName: employee.full_name, employeeType: employee.employee_type, hireDate: employee.hire_date,
+    entries: (entriesByEmployee.get(employee.id) || []).map((entry) => ({
+      month: entry.month, gross: Number(entry.gross), deductions: Number(entry.deductions), net: Number(entry.net),
+      items: Object.fromEntries((itemsByEntry.get(entry.id) || []).map((item) => [item.code, Number(item.amount)])),
+    })),
+    leaves: (leavesByEmployee.get(employee.id) || []).map((leave) => ({ dateFrom: leave.date_from, dateTo: leave.date_to, type: leave.leave_type, days: Number(leave.days), reason: leave.reason })),
+    adjustments: (adjustmentsByEmployee.get(employee.id) || []).map((adjustment) => ({ effectiveDate: adjustment.effective_date, oldSalary: Number(adjustment.old_salary), newSalary: Number(adjustment.new_salary), reason: adjustment.reason, note: adjustment.note })),
+  }));
+  const summary = Array.from({ length: 12 }, (_, index) => {
+    const month = index + 1;
+    let employeeGross = 0, directorGross = 0, employeeBonus = 0, directorBonus = 0;
+    for (const employee of exportEmployees) {
+      const entry = employee.entries.find((item) => item.month === month);
+      if (!entry) continue;
+      const bonus = Object.entries(entry.items).filter(([code]) => bonusCodes.has(code)).reduce((total, [, amount]) => total + amount, 0);
+      if (employee.employeeType === "director") { directorGross += entry.gross - bonus; directorBonus += bonus; }
+      else { employeeGross += entry.gross - bonus; employeeBonus += bonus; }
+    }
+    return { month, employeeGross, directorGross, employeeBonus, directorBonus, total: employeeGross + directorGross + employeeBonus + directorBonus };
+  });
   const input: AnnualExportInput = {
     year,
     itemHeaderCodes,
@@ -62,15 +85,8 @@ export async function getAnnualExportInput(companyId: string, year: number): Pro
     leaveHeaderCodes: Object.fromEntries(leaveHeaders.map(([label, code]) => [normalizeHeader(label), code])),
     leaveDateHeaderKeys: [normalizeHeader("วันที่ลา"), normalizeHeader("วันที่ ลา")],
     labels: { employeeTitle: "รายงานค่าจ้าง", adjustmentTitle: "รายละเอียดการปรับเงินเดือน พนักงาน", companySummaryTitle: "ตารางสรุปรายได้ พนักงาน", hireDate: "วันที่เริ่มงาน" },
-    employees: employees.rows.map((employee) => ({
-      code: employee.code, fullName: employee.full_name, employeeType: employee.employee_type, hireDate: employee.hire_date,
-      entries: (entriesByEmployee.get(employee.id) || []).map((entry) => ({
-        month: entry.month, gross: Number(entry.gross), deductions: Number(entry.deductions), net: Number(entry.net),
-        items: Object.fromEntries((itemsByEntry.get(entry.id) || []).map((item) => [item.code, Number(item.amount)])),
-      })),
-      leaves: (leavesByEmployee.get(employee.id) || []).map((leave) => ({ dateFrom: leave.date_from, dateTo: leave.date_to, type: leave.leave_type, days: Number(leave.days), reason: leave.reason })),
-      adjustments: (adjustmentsByEmployee.get(employee.id) || []).map((adjustment) => ({ effectiveDate: adjustment.effective_date, oldSalary: Number(adjustment.old_salary), newSalary: Number(adjustment.new_salary), reason: adjustment.reason, note: adjustment.note })),
-    })),
+    summary,
+    employees: exportEmployees,
   };
   return { templatePath: uploadPath(template.rows[0].storage_key), input };
 }
