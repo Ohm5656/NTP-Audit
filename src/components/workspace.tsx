@@ -676,7 +676,7 @@ function Dashboard({
               <div>
                 <strong>
                   {coverage < 12
-                    ? `เดือน${months[Math.min(coverage, 11)]}ยังไม่มีข้อมูล`
+                    ? `เดือน${months.find((_, index) => !periods.some((period) => period.year === Number(year) - 543 && period.month === index + 1 && period.activeImportId)) || "ถัดไป"}ยังไม่มีข้อมูล`
                     : "ข้อมูลครบทั้งปีแล้ว"}
                 </strong>
                 <small>เมื่อปิดงวดแล้วให้นำเข้าไฟล์ Excel</small>
@@ -843,9 +843,15 @@ function MonthDetail({
   year: string;
   setYear: (value: string) => void;
 }) {
-  const { payrollForMonth, periods } = usePayrollData();
+  const { payrollForMonth, periods, entries, employees, user, refresh } = usePayrollData();
   const [query, setQuery] = useState("");
   const [type, setType] = useState("all");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [editError, setEditError] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
   const pathname = usePathname();
   const selectedYear = Number(pathname.split("/")[2]);
   const selectedMonth = Number(pathname.split("/")[3]);
@@ -856,6 +862,8 @@ function MonthDetail({
       p.activeImportId,
   );
   const allRows = payrollForMonth(selectedMonth);
+  const selectedEmployee = employees.find((person) => person.id === selectedEmployeeId);
+  const selectedEntry = entries.find((entry) => entry.employeeDbId === selectedEmployee?.dbId && entry.year === selectedYear - 543 && entry.month === selectedMonth);
   const rows = allRows.filter(
     (row) =>
       (type === "all" || row.employee.type === type) &&
@@ -930,14 +938,10 @@ function MonthDetail({
       <Section
         title="รายการพนักงาน"
         action={
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={() => window.print()}
-          >
+          <a className="button button-secondary" href={`/api/reports/export?kind=monthly&year=${selectedYear - 543}&month=${selectedMonth}`}>
             <ArrowDownToLine size={16} />
-            พิมพ์รายการ
-          </button>
+            ส่งออก Excel
+          </a>
         }
       >
         <div className="toolbar toolbar-inside">
@@ -994,9 +998,7 @@ function MonthDetail({
                   <MoneyCell value={row.gross} />
                   <MoneyCell value={row.deductions} />
                   <MoneyCell value={row.net} />
-                  <td className="row-arrow">
-                    <ChevronRight size={16} />
-                  </td>
+                  <td className="row-arrow"><button className="icon-button" aria-label={`ดูรายละเอียดเงินเดือน ${row.employee.name}`} onClick={() => setSelectedEmployeeId(row.employee.id)}><ChevronRight size={16} /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -1017,6 +1019,44 @@ function MonthDetail({
           </table>
         </div>
       </Section>
+      {selectedEntry && selectedEmployee && (
+        <div className="modal-backdrop" onClick={() => setSelectedEmployeeId(null)}>
+          <div className="modal payroll-detail" role="dialog" aria-modal="true" aria-label={`รายละเอียดเงินเดือน ${selectedEmployee.name}`} onClick={(event) => event.stopPropagation()}>
+            <div className="modal-heading">
+              <div><h2>รายละเอียดเงินเดือน</h2><p>{selectedEmployee.name} · {selectedEmployee.id} · {months[selectedMonth - 1]} {selectedYear}</p></div>
+              <button className="icon-button" aria-label="ปิดรายละเอียด" onClick={() => setSelectedEmployeeId(null)}><X size={18} /></button>
+            </div>
+            <div className="payroll-detail-scroll">
+              {(["income", "deduction"] as const).map((kind) => <div key={kind}>
+                <h3>{kind === "income" ? "รายได้" : "รายการหัก"}</h3>
+                {selectedEntry.items.filter((item) => item.kind === kind).map((item) => <div key={item.id}>
+                  <div className="payroll-detail-line">
+                    <div><strong>{item.label}</strong><small>{item.sourceType === "manual" ? `แก้ไขแล้ว · ยอดจากไฟล์ ฿${money(item.originalAmount ?? item.amount)} · ` : ""}ไฟล์ {period.originalFilename} · ชีต {period.sourceSheet} · แถว {selectedEntry.sourceRow} · {item.sourceCell || "—"}{item.sourceHeader ? ` · ${item.sourceHeader}` : ""}</small></div>
+                    <span>฿{money(item.amount)} {user?.role !== "viewer" && <button className="text-link edit-item-button" onClick={() => { setEditingItemId(item.id); setEditAmount((item.amount / 100).toFixed(2)); setEditReason(""); setEditError(""); }}>แก้ไข</button>}</span>
+                  </div>
+                  {editingItemId === item.id && <form className="payroll-edit-form" onSubmit={async (event) => {
+                    event.preventDefault(); setEditBusy(true); setEditError("");
+                    try {
+                      const response = await fetch(`/api/payroll/items/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount: editAmount, reason: editReason }) });
+                      const result = await response.json();
+                      if (!response.ok) throw new Error(result.error || "บันทึกไม่สำเร็จ");
+                      await refresh(); setEditingItemId(null);
+                    } catch (error) { setEditError(error instanceof Error ? error.message : "บันทึกไม่สำเร็จ"); }
+                    finally { setEditBusy(false); }
+                  }}>
+                    <label>จำนวนเงินใหม่ (บาท)<input type="number" min="0" step="0.01" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label>
+                    <label>เหตุผลการแก้ไข<input value={editReason} onChange={(event) => setEditReason(event.target.value)} required minLength={3} maxLength={500} /></label>
+                    <button className="button button-primary" disabled={editBusy}>{editBusy ? "กำลังบันทึก" : "บันทึก"}</button>
+                    <button type="button" className="button button-secondary" onClick={() => setEditingItemId(null)}>ยกเลิก</button>
+                    {editError && <span className="form-error" role="alert">{editError}</span>}
+                  </form>}
+                </div>)}
+              </div>)}
+            </div>
+            <div className="payroll-detail-totals"><span>รายได้รวม ฿{money(selectedEntry.gross)}</span><span>รายการหัก ฿{money(selectedEntry.deductions)}</span><strong>สุทธิ ฿{money(selectedEntry.net)}</strong></div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -1028,7 +1068,7 @@ function AnnualEmployeeReport({
   year: string;
   setYear: (value: string) => void;
 }) {
-  const { employees, payrollForMonth, leaveRecords, salaryAdjustments } =
+  const { employees, entries, itemTypes, payrollForMonth, leaveRecords, salaryAdjustments } =
     usePayrollData();
   const [employeeId, setEmployeeId] = useState(employees[0]?.id || "");
   const [detailed, setDetailed] = useState(true);
@@ -1038,17 +1078,22 @@ function AnnualEmployeeReport({
   const monthly = Array.from({ length: 12 }, (_, index) =>
     payrollForMonth(index + 1).find((row) => row.employee.id === employeeId),
   );
-  const incomeItems: { label: string; key: keyof PayrollRow }[] = [
-    { label: "เงินเดือน", key: "salary" },
-    { label: "ค่าล่วงเวลา", key: "ot" },
-    { label: "เบี้ยเลี้ยงและค่าเดินทาง", key: "allowance" },
-    { label: "โบนัส", key: "bonus" },
-  ];
-  const deductionItems: { label: string; key: keyof PayrollRow }[] = [
-    { label: "ประกันสังคม", key: "socialSecurity" },
-    { label: "ภาษี", key: "tax" },
-    { label: "รายการหักอื่น", key: "otherDeduction" },
-  ];
+  const monthlyEntries = Array.from({ length: 12 }, (_, index) =>
+    entries.find((entry) => entry.year === Number(year) - 543 && entry.month === index + 1 && entry.employeeDbId === employee?.dbId),
+  );
+  const incomeItems = itemTypes.filter((item) => item.kind === "income");
+  const deductionItems = itemTypes.filter((item) => item.kind === "deduction");
+  const itemRow = (label: string, code: string) => {
+    const values = monthlyEntries.map((entry) => entry
+      ? entry.items.filter((item) => item.code === code).reduce((total, item) => total + item.amount, 0)
+      : null);
+    if (!showEmpty && values.every((value) => value === null || value === 0)) return null;
+    return <tr key={code}>
+      <th scope="row">{label}</th>
+      {values.map((value, index) => <MoneyCell key={index} value={value} />)}
+      <td className="numeric total-column">{money(values.reduce<number>((total, value) => total + (value || 0), 0))}</td>
+    </tr>;
+  };
   const reportRow = (label: string, key: keyof PayrollRow, strong = false) => {
     const values = monthly.map((row) => (row ? (row[key] as number) : null));
     if (!showEmpty && !strong && values.every((value) => !value)) return null;
@@ -1093,13 +1138,10 @@ function AnnualEmployeeReport({
         action={
           <>
             <SelectYear year={year} onChange={setYear} />
-            <button
-              className="button button-secondary"
-              onClick={() => window.print()}
-            >
+            <a className="button button-secondary" href={`/api/reports/export?kind=employee&year=${Number(year) - 543}&employee=${encodeURIComponent(employeeId)}`}>
               <ArrowDownToLine size={16} />
-              พิมพ์รายงาน
-            </button>
+              ส่งออก Excel
+            </a>
           </>
         }
       />
@@ -1179,14 +1221,12 @@ function AnnualEmployeeReport({
             <tr className="report-section-row">
               <th colSpan={14}>รายได้</th>
             </tr>
-            {detailed &&
-              incomeItems.map((item) => reportRow(item.label, item.key))}
+            {detailed && incomeItems.map((item) => itemRow(item.label, item.code))}
             {reportRow("รวมรายได้", "gross", true)}
             <tr className="report-section-row">
               <th colSpan={14}>รายการหัก</th>
             </tr>
-            {detailed &&
-              deductionItems.map((item) => reportRow(item.label, item.key))}
+            {detailed && deductionItems.map((item) => itemRow(item.label, item.code))}
             {reportRow("รวมรายการหัก", "deductions", true)}
             {reportRow("เงินได้สุทธิ", "net", true)}
           </tbody>
@@ -1207,7 +1247,7 @@ function AnnualEmployeeReport({
                 {leaveRecords
                   .filter(
                     (item) =>
-                      item.employeeId === employeeId && item.type === "ลากิจ",
+                      item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)) && item.type === "ลากิจ",
                   )
                   .reduce((a, b) => a + b.days, 0)}
               </strong>
@@ -1218,7 +1258,7 @@ function AnnualEmployeeReport({
                 {leaveRecords
                   .filter(
                     (item) =>
-                      item.employeeId === employeeId && item.type === "พักร้อน",
+                      item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)) && item.type === "พักร้อน",
                   )
                   .reduce((a, b) => a + b.days, 0)}
               </strong>
@@ -1229,7 +1269,7 @@ function AnnualEmployeeReport({
                 {leaveRecords
                   .filter(
                     (item) =>
-                      item.employeeId === employeeId && item.type === "ลาป่วย",
+                      item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)) && item.type === "ลาป่วย",
                   )
                   .reduce((a, b) => a + b.days, 0)}
               </strong>
@@ -1238,7 +1278,7 @@ function AnnualEmployeeReport({
           </div>
           <div className="compact-list">
             {leaveRecords
-              .filter((item) => item.employeeId === employeeId)
+              .filter((item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)))
               .map((item) => (
                 <div key={item.id}>
                   <span>
@@ -1247,7 +1287,7 @@ function AnnualEmployeeReport({
                   <strong>{item.days} วัน</strong>
                 </div>
               ))}
-            {!leaveRecords.some((item) => item.employeeId === employeeId) && (
+            {!leaveRecords.some((item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543))) && (
               <p className="empty-inline">ยังไม่มีบันทึกการลา</p>
             )}
           </div>
@@ -1262,7 +1302,7 @@ function AnnualEmployeeReport({
         >
           <div className="compact-list">
             {salaryAdjustments
-              .filter((item) => item.employeeId === employeeId)
+              .filter((item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)))
               .map((item) => (
                 <div key={item.id}>
                   <span>
@@ -1272,7 +1312,7 @@ function AnnualEmployeeReport({
                 </div>
               ))}
             {!salaryAdjustments.some(
-              (item) => item.employeeId === employeeId,
+              (item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)),
             ) && <p className="empty-inline">ยังไม่มีประวัติปรับเงินเดือน</p>}
           </div>
         </Section>
@@ -1302,13 +1342,10 @@ function CompanyReport({
         action={
           <>
             <SelectYear year={year} onChange={setYear} />
-            <button
-              className="button button-secondary"
-              onClick={() => window.print()}
-            >
+            <a className="button button-secondary" href={`/api/reports/export?kind=company&year=${Number(year) - 543}`}>
               <ArrowDownToLine size={16} />
-              พิมพ์รายงาน
-            </button>
+              ส่งออก Excel
+            </a>
           </>
         }
       />
@@ -1346,6 +1383,8 @@ function CompanyReport({
                 <th>เดือน</th>
                 <th className="numeric">เงินเดือนพนักงาน</th>
                 <th className="numeric">เงินเดือนกรรมการ</th>
+                <th className="numeric">โบนัสพนักงาน</th>
+                <th className="numeric">โบนัสกรรมการ</th>
                 <th className="numeric">OT</th>
                 <th className="numeric">รายได้รวม</th>
                 {showExtra && (
@@ -1394,6 +1433,8 @@ function CompanyReport({
                           : null
                       }
                     />
+                    <MoneyCell value={hasData ? rows.filter((row) => row.employee.type === "employee").reduce((a, b) => a + b.bonus, 0) : null} />
+                    <MoneyCell value={hasData ? rows.filter((row) => row.employee.type === "director").reduce((a, b) => a + b.bonus, 0) : null} />
                     <MoneyCell value={hasData ? sum(rows, "ot") : null} />
                     <MoneyCell value={hasData ? sum(rows, "gross") : null} />
                     {showExtra && (
@@ -1435,6 +1476,8 @@ function CompanyReport({
                       : null
                   }
                 />
+                <MoneyCell value={imported ? totals.flat().filter((row) => row.employee.type === "employee").reduce((a, b) => a + b.bonus, 0) : null} />
+                <MoneyCell value={imported ? totals.flat().filter((row) => row.employee.type === "director").reduce((a, b) => a + b.bonus, 0) : null} />
                 <MoneyCell value={imported ? annualTotal("ot") : null} />
                 <MoneyCell value={imported ? annualTotal("gross") : null} />
                 {showExtra && (
@@ -1667,10 +1710,13 @@ function EmployeesPage({
 }
 
 function EmployeeProfile({ id }: { id: string }) {
-  const { employees, payrollForMonth, leaveRecords, salaryAdjustments } =
+  const { employees, entries, payrollForMonth, leaveRecords, salaryAdjustments } =
     usePayrollData();
   const employee = employees.find((item) => item.id === id);
   const [tab, setTab] = useState("overview");
+  const monthly = entries
+    .filter((entry) => entry.employeeDbId === employee?.dbId)
+    .sort((a, b) => b.year - a.year || b.month - a.month)[0];
   if (!employee)
     return (
       <PageHeading
@@ -1682,8 +1728,6 @@ function EmployeeProfile({ id }: { id: string }) {
         }
       />
     );
-  const rows = payrollForMonth(9);
-  const monthly = rows.find((row) => row.employee.id === employee.id);
   return (
     <>
       <div className="backline">
@@ -1696,7 +1740,7 @@ function EmployeeProfile({ id }: { id: string }) {
         <div>
           <div className="profile-title">
             <h1>{employee.name}</h1>
-            <Status>ปฏิบัติงาน</Status>
+            <Status tone={employee.status === "active" ? "green" : "gray"}>{employee.status === "active" ? "ปฏิบัติงาน" : employee.status === "resigned" ? "ลาออก" : "ไม่ปฏิบัติงาน"}</Status>
           </div>
           <p>
             {employee.id} · {employee.position} · {employee.department}
@@ -1761,20 +1805,20 @@ function EmployeeProfile({ id }: { id: string }) {
             <div className="detail-list">
               <div>
                 <span>งวด</span>
-                <strong>กันยายน 2569</strong>
+                <strong>{monthly ? `${months[monthly.month - 1]} ${monthly.year + 543}` : "—"}</strong>
               </div>
               <div>
                 <span>รายได้รวม</span>
-                <strong>฿{money(monthly?.gross || 0)}</strong>
+                <strong>{monthly ? `฿${money(monthly.gross)}` : "—"}</strong>
               </div>
               <div>
                 <span>รายการหัก</span>
-                <strong>฿{money(monthly?.deductions || 0)}</strong>
+                <strong>{monthly ? `฿${money(monthly.deductions)}` : "—"}</strong>
               </div>
               <div>
                 <span>เงินสุทธิ</span>
                 <strong className="green-text">
-                  ฿{money(monthly?.net || 0)}
+                  {monthly ? `฿${money(monthly.net)}` : "—"}
                 </strong>
               </div>
             </div>
@@ -2327,7 +2371,7 @@ function ImportHistory() {
           และเก็บเวอร์ชันเก่าไว้ตรวจสอบย้อนหลัง
         </p>
         <div className="version-example">
-          <span>กันยายน 2569</span>
+          <span>งวดเดิม</span>
           <span>v1 · เดิม</span>
           <ChevronRight size={16} />
           <span>v2 · ใช้งานอยู่</span>
@@ -2438,7 +2482,7 @@ function SettingsPage() {
             </div>
             <div>
               <span>ปีบัญชีที่แสดง</span>
-              <strong>2569</strong>
+              <strong>{new Date().getFullYear() + 543}</strong>
             </div>
             <div>
               <span>สกุลเงิน</span>

@@ -136,6 +136,8 @@ CREATE TABLE IF NOT EXISTS payroll_items (
   entry_id uuid NOT NULL REFERENCES payroll_entries(id) ON DELETE CASCADE,
   item_type_id uuid NOT NULL REFERENCES payroll_item_types(id),
   amount numeric(14,2) NOT NULL,
+  original_amount numeric(14,2),
+  edited_at timestamptz,
   source_header text,
   source_cell text,
   raw_formula text,
@@ -143,6 +145,8 @@ CREATE TABLE IF NOT EXISTS payroll_items (
   source_type text NOT NULL CHECK (source_type IN ('imported','calculated','manual')),
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS original_amount numeric(14,2);
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS edited_at timestamptz;
 CREATE INDEX IF NOT EXISTS payroll_items_entry_idx ON payroll_items(entry_id);
 
 CREATE TABLE IF NOT EXISTS leave_records (

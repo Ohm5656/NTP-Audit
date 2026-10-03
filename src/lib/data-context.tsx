@@ -57,20 +57,29 @@ export type SalaryRecord = {
   newSalary: number;
   reason: string;
 };
-type Entry = {
+export type Entry = {
   id: string;
   employeeDbId: string;
   year: number;
   month: number;
+  sourceRow: number | null;
   gross: number;
   deductions: number;
   net: number;
+  excelGross: number | null;
+  excelNet: number | null;
+  warnings: { severity: string; code: string; message: string }[];
   items: {
+    id: string;
     code: string;
     label: string;
     kind: string;
     amount: number;
+    originalAmount: number | null;
     sourceType: string;
+    sourceHeader: string | null;
+    sourceCell: string | null;
+    originalValue: string | null;
   }[];
 };
 type ApiData = {
