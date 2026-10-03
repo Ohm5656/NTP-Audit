@@ -26,20 +26,51 @@ npm run dev
 - `scripts/setup.mjs` — สร้างตาราง รายการเงินเดือนเริ่มต้น และบัญชี Admin
 - `docs/product-plan.md` — แผน session, ระบบข้อมูล และเกณฑ์ตรวจ
 
-ไฟล์ `.xlsx` และ `.env*` ถูกกันออกจาก Git เพื่อป้องกันการเผยแพร่ข้อมูลส่วนบุคคลและคีย์เชื่อมต่อ
 
-## สถานะงาน
 
-Session 1: หน้าจอ 17 เส้นทางและระบบภาพ
-
-Session 2: PostgreSQL, Login แบบ session cookie, บทบาท, API ข้อมูลจริง, เพิ่มพนักงาน/วันลา/ปรับเงินเดือน และ audit log
-
-Session 3: Excel importer ใช้งานจริง เลือกชีต ตรวจยอด จับคู่พนักงาน/รายการใหม่ บันทึกแบบ transaction เก็บเวอร์ชันและไฟล์ต้นฉบับส่วนตัว
-
-Session ถัดไป: รายงานละเอียดแบบ dynamic, export และ PWA
-
-## นำเข้าไฟล์รายเดือน
-
-เข้าสู่ระบบด้วยบทบาท `admin` หรือ `payroll` แล้วไปที่ **นำเข้าข้อมูล** เลือกไฟล์ `.xlsx` รายเดือน ตรวจชีตและงวดที่ระบบเสนอ จับคู่พนักงานและหัวรายการที่ไม่รู้จัก ตรวจยอดก่อนกดยืนยัน หากงวดซ้ำ ให้เลือกแทนที่เพื่อเก็บเวอร์ชันก่อนหน้าไว้ รายการที่ยอดรวมต่างจาก Excel จะไม่อนุญาตให้บันทึก
-
-ไฟล์ตัวอย่าง `เดือน 9.xlsx` จะเสนอชีต `คิดค่าจ้าง` เป็นค่าเริ่มต้นตามที่ยืนยันไว้ ระบบอ่านเฉพาะชีตที่ผู้ใช้เลือก ไม่ดึงทุกชีตเข้าเป็นงวดเงินเดือน ไฟล์ต้นฉบับถูกเก็บใน `.data/uploads` ซึ่งอยู่นอก Git; ควรสำรองทั้งฐานข้อมูลและโฟลเดอร์นี้พร้อมกัน
+## WorkFlow
+┌──────────────────────────────┐
+│        User / Accounting     │
+│   Desktop / Laptop / PWA     │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│       Next.js Web App        │
+│                              │
+│ Dashboard                    │
+│ Monthly Payroll              │
+│ Annual Report                │
+│ Employees                    │
+│ Leave                        │
+│ Salary Adjustment            │
+│ Import Excel                 │
+│ Settings                     │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│       Application Layer      │
+│                              │
+│ Auth / Permission            │
+│ Excel Import Service         │
+│ Validation                   │
+│ Employee Matching            │
+│ Payroll Calculation          │
+│ Annual Aggregation           │
+│ Excel Export Generator       │
+│ Archive Service              │
+└─────────┬──────────┬─────────┘
+          │          │
+          ▼          ▼
+┌────────────────┐  ┌─────────────────┐
+│ Supabase DB    │  │ Supabase Storage│
+│ PostgreSQL     │  │                 │
+│                │  │ Original .xlsx  │
+│ Employees      │  │ Monthly files   │
+│ Payroll        │  │                 │
+│ Leave          │  │                 │
+│ Salary History │  │                 │
+│ Imports        │  │                 │
+│ Audit          │  │                 │
+└────────────────┘  └─────────────────┘
