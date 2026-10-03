@@ -1399,14 +1399,10 @@ function EmployeesPage({
         title="พนักงาน"
         description="ข้อมูลบุคลากรและประวัติเงินเดือน"
         action={
-          <button
-            className="button button-primary"
-            onClick={() => setOpen(true)}
-            disabled={user?.role === "viewer"}
-          >
+          <Link className="button button-primary" href="/import">
             <Plus size={17} />
-            เพิ่มพนักงาน
-          </button>
+            นำเข้า Payroll
+          </Link>
         }
       />
       <div className="toolbar">

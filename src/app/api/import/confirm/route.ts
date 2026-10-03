@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { requireRole, authErrorResponse } from "@/lib/auth";
 import { inTransaction } from "@/lib/db";
@@ -36,11 +36,11 @@ async function nextEmployeeCode(
 export async function POST(request: Request) {
   try {
     const user = await requireRole("admin", "payroll");
-    if (!isSameOrigin(request)) return badRequest("คำขอไม่ตรงกับเว็บไซต์", 403);
+    if (!isSameOrigin(request)) return badRequest("à¸„à¸³à¸‚à¸­à¹„à¸¡à¹ˆà¸•à¸£à¸‡à¸à¸±à¸šà¹€à¸§à¹‡à¸šà¹„à¸‹à¸•à¹Œ", 403);
     const checked = confirmSchema.safeParse(
       await request.json().catch(() => null),
     );
-    if (!checked.success) return badRequest("ข้อมูลยืนยันการนำเข้าไม่ถูกต้อง");
+    if (!checked.success) return badRequest("à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸¢à¸·à¸™à¸¢à¸±à¸™à¸à¸²à¸£à¸™à¸³à¹€à¸‚à¹‰à¸²à¹„à¸¡à¹ˆà¸–à¸¹à¸à¸•à¹‰à¸­à¸‡");
     const input = checked.data;
     const preview = await buildPreview(user.companyId, input);
     const { upload, parsed } = await parseStaged(
@@ -49,29 +49,29 @@ export async function POST(request: Request) {
       input.sheetName,
     );
     if (!parsed.source.year || !parsed.source.month)
-      throw new ImportProblem("กรุณาเลือกชีตที่ระบุเดือนและปีชัดเจน");
+      throw new ImportProblem("à¸à¸£à¸¸à¸“à¸²à¹€à¸¥à¸·à¸­à¸à¸Šà¸µà¸•à¸—à¸µà¹ˆà¸£à¸°à¸šà¸¸à¹€à¸”à¸·à¸­à¸™à¹à¸¥à¸°à¸›à¸µà¸Šà¸±à¸”à¹€à¸ˆà¸™");
     const blocking = preview.issues.filter(
       (issue) => issue.severity === "error",
     );
     if (blocking.length)
       throw new ImportProblem(
-        `ยังมีข้อผิดพลาด ${blocking.length} รายการ กรุณาตรวจสอบก่อนบันทึก`,
+        `à¸¢à¸±à¸‡à¸¡à¸µà¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸” ${blocking.length} à¸£à¸²à¸¢à¸à¸²à¸£ à¸à¸£à¸¸à¸“à¸²à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸à¹ˆà¸­à¸™à¸šà¸±à¸™à¸—à¸¶à¸`,
       );
     const previewByRow = new Map(preview.rows.map((row) => [row.row, row]));
     const selectedCodes = new Set<string>();
     for (const row of parsed.rows) {
       const match = previewByRow.get(row.row)?.match;
-      if (!match) throw new ImportProblem("จับคู่พนักงานไม่ครบ");
+      if (!match) throw new ImportProblem("à¸ˆà¸±à¸šà¸„à¸¹à¹ˆà¸žà¸™à¸±à¸à¸‡à¸²à¸™à¹„à¸¡à¹ˆà¸„à¸£à¸š");
       if (
         match.status === "new" &&
         input.employees?.[String(row.row)]?.action !== "create"
       )
         throw new ImportProblem(
-          `กรุณายืนยันการสร้างพนักงานใหม่ที่แถว ${row.row}`,
+          `à¸à¸£à¸¸à¸“à¸²à¸¢à¸·à¸™à¸¢à¸±à¸™à¸à¸²à¸£à¸ªà¸£à¹‰à¸²à¸‡à¸žà¸™à¸±à¸à¸‡à¸²à¸™à¹ƒà¸«à¸¡à¹ˆà¸—à¸µà¹ˆà¹à¸–à¸§ ${row.row}`,
         );
       if (match.status === "matched") {
         if (!match.code || selectedCodes.has(match.code))
-          throw new ImportProblem("พนักงานหนึ่งคนถูกจับคู่ซ้ำในงวดเดียวกัน");
+          throw new ImportProblem("à¸žà¸™à¸±à¸à¸‡à¸²à¸™à¸«à¸™à¸¶à¹ˆà¸‡à¸„à¸™à¸–à¸¹à¸à¸ˆà¸±à¸šà¸„à¸¹à¹ˆà¸‹à¹‰à¸³à¹ƒà¸™à¸‡à¸§à¸”à¹€à¸”à¸µà¸¢à¸§à¸à¸±à¸™");
         selectedCodes.add(match.code);
       }
     }
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
         [upload.id, user.companyId],
       );
       if (stage.rows[0]?.status !== "staged")
-        throw new ImportProblem("ไฟล์นี้ถูกบันทึกไปแล้ว", 409);
+        throw new ImportProblem("à¹„à¸Ÿà¸¥à¹Œà¸™à¸µà¹‰à¸–à¸¹à¸à¸šà¸±à¸™à¸—à¸¶à¸à¹„à¸›à¹à¸¥à¹‰à¸§", 409);
       await client.query(
         "INSERT INTO payroll_periods(company_id,year,month,payment_date) VALUES($1,$2,$3,$4) ON CONFLICT(company_id,year,month) DO NOTHING",
         [
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       const period = periodResult.rows[0];
       if (period.active_import_id && !input.replace)
         throw new ImportProblem(
-          "งวดนี้มีข้อมูลแล้ว กรุณาเปรียบเทียบและเลือกแทนที่",
+          "à¸‡à¸§à¸”à¸™à¸µà¹‰à¸¡à¸µà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹à¸¥à¹‰à¸§ à¸à¸£à¸¸à¸“à¸²à¹€à¸›à¸£à¸µà¸¢à¸šà¹€à¸—à¸µà¸¢à¸šà¹à¸¥à¸°à¹€à¸¥à¸·à¸­à¸à¹à¸—à¸™à¸—à¸µà¹ˆ",
           409,
         );
       const oldImportId = period.active_import_id;
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
         const normalized = normalizeHeader(unknown.header);
         const choice = input.mappings?.[normalized];
         if (!choice)
-          throw new ImportProblem(`ยังไม่ได้จับคู่รายการ ${unknown.header}`);
+          throw new ImportProblem(`à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¹„à¸”à¹‰à¸ˆà¸±à¸šà¸„à¸¹à¹ˆà¸£à¸²à¸¢à¸à¸²à¸£ ${unknown.header}`);
         if (choice.action === "ignore") {
           if (
             parsed.rows.some((row) =>
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
             )
           )
             throw new ImportProblem(
-              `รายการ ${unknown.header} มียอดเงิน ต้องจับคู่หรือสร้างรายการใหม่`,
+              `à¸£à¸²à¸¢à¸à¸²à¸£ ${unknown.header} à¸¡à¸µà¸¢à¸­à¸”à¹€à¸‡à¸´à¸™ à¸•à¹‰à¸­à¸‡à¸ˆà¸±à¸šà¸„à¸¹à¹ˆà¸«à¸£à¸·à¸­à¸ªà¸£à¹‰à¸²à¸‡à¸£à¸²à¸¢à¸à¸²à¸£à¹ƒà¸«à¸¡à¹ˆ`,
             );
           resolvedHeaders.set(normalized, null);
           continue;
@@ -152,12 +152,12 @@ export async function POST(request: Request) {
           type = types.get(choice.code);
           if (!type || type.kind !== unknown.kind)
             throw new ImportProblem(
-              `ประเภทการจับคู่ ${unknown.header} ไม่ถูกต้อง`,
+              `à¸›à¸£à¸°à¹€à¸ à¸—à¸à¸²à¸£à¸ˆà¸±à¸šà¸„à¸¹à¹ˆ ${unknown.header} à¹„à¸¡à¹ˆà¸–à¸¹à¸à¸•à¹‰à¸­à¸‡`,
             );
         } else {
           if (choice.kind !== unknown.kind)
             throw new ImportProblem(
-              `ประเภทของรายการ ${unknown.header} ไม่ตรงกับหัวตาราง`,
+              `à¸›à¸£à¸°à¹€à¸ à¸—à¸‚à¸­à¸‡à¸£à¸²à¸¢à¸à¸²à¸£ ${unknown.header} à¹„à¸¡à¹ˆà¸•à¸£à¸‡à¸à¸±à¸šà¸«à¸±à¸§à¸•à¸²à¸£à¸²à¸‡`,
             );
           const code = `custom_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
           const created = await client.query<{
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
           const employee = existingByCode.get(match.code!);
           if (!employee || employee.employee_type !== source.employeeType)
             throw new ImportProblem(
-              `พนักงานแถว ${source.row} ไม่ตรงกับประเภทที่เลือก`,
+              `à¸žà¸™à¸±à¸à¸‡à¸²à¸™à¹à¸–à¸§ ${source.row} à¹„à¸¡à¹ˆà¸•à¸£à¸‡à¸à¸±à¸šà¸›à¸£à¸°à¹€à¸ à¸—à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸`,
             );
           employeeId = employee.id;
         } else {
@@ -259,7 +259,7 @@ export async function POST(request: Request) {
             : resolvedHeaders.get(normalizeHeader(item.header));
           if (!type) return [];
           if (type.kind !== item.kind)
-            throw new ImportProblem(`ประเภทของรายการ ${item.header} ไม่ตรงกัน`);
+            throw new ImportProblem(`à¸›à¸£à¸°à¹€à¸ à¸—à¸‚à¸­à¸‡à¸£à¸²à¸¢à¸à¸²à¸£ ${item.header} à¹„à¸¡à¹ˆà¸•à¸£à¸‡à¸à¸±à¸™`);
           return [{ itemTypeId: type.id, item }];
         });
         const gross = items
@@ -278,7 +278,7 @@ export async function POST(request: Request) {
         });
         employeeCount++;
       }
-      if (!employeeCount) throw new ImportProblem("ไม่มีพนักงานที่จะบันทึก");
+      if (!employeeCount) throw new ImportProblem("à¹„à¸¡à¹ˆà¸¡à¸µà¸žà¸™à¸±à¸à¸‡à¸²à¸™à¸—à¸µà¹ˆà¸ˆà¸°à¸šà¸±à¸™à¸—à¸¶à¸");
       const newImport = await client.query<{ id: string }>(
         "INSERT INTO imports(company_id,period_id,version,original_filename,storage_key,sha256,source_sheet,status,imported_by,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,'active',$8,$9) RETURNING id",
         [
@@ -352,6 +352,18 @@ export async function POST(request: Request) {
         [importId, parsed.source.paymentDate, period.id],
       );
       await client.query(
+        `UPDATE employees em SET current_salary=latest.amount,updated_at=now()
+         FROM (
+           SELECT DISTINCT ON (e.employee_id) e.employee_id,pi.amount
+           FROM active_payroll_entries e
+           JOIN payroll_items pi ON pi.entry_id=e.id
+           JOIN payroll_item_types t ON t.id=pi.item_type_id AND t.code='salary'
+           WHERE e.company_id=$1 AND e.employee_id=ANY($2::uuid[])
+           ORDER BY e.employee_id,e.year DESC,e.month DESC
+         ) latest WHERE em.id=latest.employee_id`,
+        [user.companyId, Array.from(new Set(prepared.map((entry) => entry.employeeId)))],
+      );
+      await client.query(
         "UPDATE import_uploads SET status='committed' WHERE id=$1",
         [upload.id],
       );
@@ -389,7 +401,7 @@ export async function POST(request: Request) {
       return badRequest(error.message, error.status);
     if (
       error instanceof Error &&
-      (error.message.includes("ไฟล์") || error.message.includes("ชีต"))
+      (error.message.includes("à¹„à¸Ÿà¸¥à¹Œ") || error.message.includes("à¸Šà¸µà¸•"))
     )
       return badRequest(error.message);
     return authErrorResponse(error);
