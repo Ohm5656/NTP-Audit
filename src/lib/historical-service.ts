@@ -5,7 +5,7 @@ import { normalizeName } from "./excel-import";
 import { parseHistoricalWorkbook } from "./historical-import";
 import { ensureUploadDirectory,uploadPath } from "./import-storage";
 type EmployeeRow={id:string;normalized_name:string;full_name:string};
-const nameAliases:Array<[string,string]>=[["ดนุกานต์","ตั้ง"],["อัษฎาพร","บอล"],["วรรณษณ์","แนน"],["พัชระ","เม่น"],["วัชระ","นุก"],["โชคลิขิต","เบียร์"],["สุภนัย","เปา"],["ภาณุวัฒน์","บอย"],["อดิศักดิ์","เก็ต"],["บรรจง","บรรจง"]];
+const nameAliases:Array<[string,string]>=[["ดนุกานต์","ตั้ง"],["อัษฎาพร","บอล"],["วรรณษณ์","แนน"],["จริยา","วรรณษรณ์"],["พัชระ","เม่น"],["วัชระ","นุก"],["โชคลิขิต","เบียร์"],["สุภนัย","เปา"],["ภาณุวัฒน์","บอย"],["อดิศักดิ์","เก็ต"],["บรรจง","บรรจง"]];
 function personKey(value:string){return normalizeName(value).replace(/^(นาย|นางสาว|นาง)/,"").replace(/[.]/g,"");}
 function findEmployee(sourceName:string,employees:EmployeeRow[]){const source=personKey(sourceName);const direct=employees.filter(employee=>{const candidate=personKey(employee.full_name||employee.normalized_name);return candidate===source||candidate.includes(source)||source.includes(candidate);});if(direct.length===1)return direct[0];const aliases=nameAliases.flatMap(([left,right])=>{const a=personKey(left),b=personKey(right);return source.includes(a)?[b]:source.includes(b)?[a]:[];});const aliasMatches=employees.filter(employee=>{const candidate=personKey(employee.full_name||employee.normalized_name);return aliases.some(alias=>candidate.includes(alias)||alias.includes(candidate));});return aliasMatches.length===1?aliasMatches[0]:null;}
 /** Imports only start dates and leave records. Monthly Excel is the sole source of payroll. */
