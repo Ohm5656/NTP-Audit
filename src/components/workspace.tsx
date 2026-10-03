@@ -1573,7 +1573,7 @@ function EmployeesPage({
 }
 
 function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnualYear: number }) {
-  const { employees, entries, payrollForMonth, leaveRecords, salaryAdjustments } =
+  const { employees, entries, leaveRecords, salaryAdjustments } =
     usePayrollData();
   const employee = employees.find((item) => item.id === id);
   const [tab, setTab] = useState(selectedAnnualYear > 1900 || entries.some((entry) => entry.employeeDbId === employee?.dbId) ? "annual" : "overview");
@@ -1610,7 +1610,7 @@ function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnua
             <Status tone={employee.status === "active" ? "green" : "gray"}>{employee.status === "active" ? "ปฏิบัติงาน" : employee.status === "resigned" ? "ลาออก" : "ไม่ปฏิบัติงาน"}</Status>
           </div>
           <p>
-            {employee.id} · {employee.position} · {employee.department}
+            {[employee.id, employee.position, employee.department].filter(Boolean).join(" \u00b7 ")}
           </p>
         </div>
       </div>
@@ -1618,10 +1618,8 @@ function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnua
         {[
           ["overview", "ภาพรวม"],
           ["annual", "\u0e23\u0e32\u0e22\u0e44\u0e14\u0e49\u0e23\u0e32\u0e22\u0e1b\u0e35"],
-          ["income", "รายได้"],
           ["leave", "วันลา"],
           ["salary", "ปรับเงินเดือน"],
-          ["documents", "ข้อมูลและเอกสาร"],
         ].map(([key, label]) => (
           <button
             role="tab"
@@ -1695,55 +1693,8 @@ function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnua
         </div>
       )}
       {tab === "annual" && <EmployeeAnnualTable employeeId={employee.id} selectedYear={selectedAnnualYear > 1900 ? selectedAnnualYear : (monthly?.year || new Date().getFullYear())} />}
-            {tab === "income" && (
-        <Section title="รายได้รายเดือน">
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>เดือน</th>
-                  <th className="numeric">เงินเดือน</th>
-                  <th className="numeric">OT</th>
-                  <th className="numeric">รายได้รวม</th>
-                  <th className="numeric">รายการหัก</th>
-                  <th className="numeric">สุทธิ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {months.map((month, index) => {
-                  const row = payrollForMonth(index + 1).find(
-                    (item) => item.employee.id === id,
-                  );
-                  return (
-                    <tr key={month}>
-                      <td>{month}</td>
-                      <MoneyCell value={row?.salary ?? null} />
-                      <MoneyCell value={row?.ot ?? null} />
-                      <MoneyCell value={row?.gross ?? null} />
-                      <MoneyCell value={row?.deductions ?? null} />
-                      <MoneyCell value={row?.net ?? null} />
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-      )}
       {tab === "leave" && (<Section title="ประวัติการลา" action={<span className="section-subtle">{employeeLeaves.length} รายการ</span>}>{employeeLeaves.length ? <><div className="history-summary">{Object.entries(leaveTotals).map(([type, days]) => <div key={type}><strong>{days}</strong><span>{type}</span></div>)}</div><div className="history-table-wrap"><table className="history-table"><thead><tr><th>วันที่</th><th>ประเภท</th><th>เหตุผล</th><th className="numeric">จำนวนวัน</th></tr></thead><tbody>{employeeLeaves.map((item) => <tr key={item.id}><td>{thaiDate(item.date)}</td><td><span className="history-tag">{item.type}</span></td><td>{item.reason || "—"}</td><td className="numeric history-value">{item.days.toFixed(2)}</td></tr>)}</tbody></table></div></> : <p className="empty-inline">ยังไม่มีบันทึกการลา</p>}</Section>)}
-      {tab === "salary" && (<Section title="ประวัติปรับเงินเดือน" action={<span className="section-subtle">{employeeAdjustments.length} รายการ</span>}>{employeeAdjustments.length ? <div className="salary-history">{employeeAdjustments.map((item) => { const change = item.newSalary - item.oldSalary; const percent = item.oldSalary ? (change / item.oldSalary) * 100 : 0; return <article className="salary-history-row" key={item.id}><div className="salary-history-date">{thaiDate(item.date)}</div><div className="salary-history-amount"><strong>฿{money(item.oldSalary)}</strong><span>→</span><strong>฿{money(item.newSalary)}</strong></div><div><span className="salary-change">{change >= 0 ? "+" : ""}฿{money(change)} · {percent >= 0 ? "+" : ""}{percent.toFixed(1)}%</span><p>{item.reason || "ไม่มีหมายเหตุ"}</p></div></article>; })}</div> : <p className="empty-inline">ยังไม่มีประวัติการปรับเงินเดือน</p>}</Section>)}      {tab === "documents" && (
-        <Section title="ข้อมูลและเอกสาร">
-          <div className="sensitive-panel">
-            <CircleAlert size={19} />
-            <div>
-              <strong>ข้อมูลส่วนบุคคล</strong>
-              <p>
-                เลขประจำตัวประชาชนและบัญชีธนาคารจะถูกปิดบังตามสิทธิ์ผู้ใช้งานเมื่อเชื่อมระบบจริง
-              </p>
-            </div>
-          </div>
-        </Section>
-      )}
+      {tab === "salary" && (<Section title="ประวัติปรับเงินเดือน" action={<span className="section-subtle">{employeeAdjustments.length} รายการ</span>}>{employeeAdjustments.length ? <div className="salary-history">{employeeAdjustments.map((item) => { const change = item.newSalary - item.oldSalary; const percent = item.oldSalary ? (change / item.oldSalary) * 100 : 0; return <article className="salary-history-row" key={item.id}><div className="salary-history-date">{thaiDate(item.date)}</div><div className="salary-history-amount"><strong>฿{money(item.oldSalary)}</strong><span>→</span><strong>฿{money(item.newSalary)}</strong></div><div><span className="salary-change">{change >= 0 ? "+" : ""}฿{money(change)} · {percent >= 0 ? "+" : ""}{percent.toFixed(1)}%</span><p>{item.reason || "ไม่มีหมายเหตุ"}</p></div></article>; })}</div> : <p className="empty-inline">ยังไม่มีประวัติการปรับเงินเดือน</p>}</Section>)}
     </>
   );
 }
