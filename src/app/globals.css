@@ -2156,3 +2156,9 @@ thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important;
   .annual-report-actions { width: 100%; justify-content: space-between; }
   .annual-report-actions .button { min-height: 36px; }
 }
+
+/* Annual employee report: align header bands to the rendered data columns. */
+.employee-annual-section .section-heading { min-height: 70px; }
+.employee-annual-section .section-heading h2 { line-height: 1.4; }
+.annual-payroll-table thead tr:first-child th { padding-top: 11px; padding-bottom: 11px; }
+.annual-payroll-table thead tr:nth-child(2) th { padding-top: 10px; padding-bottom: 10px; }
