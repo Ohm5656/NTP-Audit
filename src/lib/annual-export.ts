@@ -31,7 +31,7 @@ const specialHeaders: Array<[string, "gross" | "deductions" | "net"]> = [
   ["รวมรายได้", "gross"], ["รวมเงินได้", "gross"], ["รวมรายการหัก", "deductions"], ["รายการหัก", "deductions"], ["รายได้สุทธิ", "net"], ["เงินได้สุทธิ", "net"],
 ];
 const leaveHeaders: Array<[string, AnnualExportInput["employees"][number]["leaves"][number]["type"]]> = [
-  ["ลากิจ", "personal"], ["ลาพักร้อน", "vacation"], ["ลาป่วย", "sick"], ["ลาไม่รับค่าจ้าง", "unpaid"], ["ไม่รับค่าจ้าง", "unpaid"], ["ขาดงาน", "absence"],
+  ["ลากิจ", "personal"], ["ลาพักร้อน", "vacation"], ["พักร้อน", "vacation"], ["พักร้อน 7 วัน", "vacation"], ["ลาป่วย", "sick"], ["ลาไม่รับค่าจ้าง", "unpaid"], ["ไม่รับค่าจ้าง", "unpaid"], ["ขาดงาน", "absence"],
 ];
 
 export async function getAnnualExportInput(companyId: string, year: number): Promise<{ templatePath: string; input: AnnualExportInput }> {
@@ -41,7 +41,7 @@ export async function getAnnualExportInput(companyId: string, year: number): Pro
     db().query<EntryRow>("SELECT id,employee_id,month,gross::text,deductions::text,net::text FROM active_payroll_entries WHERE company_id=$1 AND year=$2 ORDER BY employee_id,month", [companyId, year]),
     db().query<ItemRow>("SELECT pi.entry_id,t.code,pi.amount::text FROM payroll_items pi JOIN payroll_item_types t ON t.id=pi.item_type_id JOIN active_payroll_entries e ON e.id=pi.entry_id WHERE e.company_id=$1 AND e.year=$2", [companyId, year]),
     db().query<LeaveRow>("SELECT employee_id,date_from::text,date_to::text,leave_type,days::text,reason FROM leave_records WHERE company_id=$1 AND EXTRACT(YEAR FROM date_from)=$2 ORDER BY date_from,id", [companyId, year]),
-    db().query<AdjustmentRow>("SELECT employee_id,effective_date::text,old_salary::text,new_salary::text,reason,note FROM salary_adjustments WHERE company_id=$1 AND EXTRACT(YEAR FROM effective_date)=$2 ORDER BY effective_date,id", [companyId, year]),
+    db().query<AdjustmentRow>("SELECT employee_id,effective_date::text,old_salary::text,new_salary::text,reason,note FROM salary_adjustments WHERE company_id=$1 ORDER BY effective_date,id", [companyId]),
     db().query<{ code: string; label: string; aliases: string[] }>("SELECT code,label,aliases FROM payroll_item_types WHERE company_id=$1", [companyId]),
   ]);
   if (!template.rows[0]) throw new Error("ยังไม่มีไฟล์ Annual Template สำหรับสร้างรายงาน");

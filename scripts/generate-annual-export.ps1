@@ -4,15 +4,105 @@ function Norm($v){if($null -eq $v){return ''};return (($v.ToString()).ToLowerInv
 function Txt($s,$r,$c){return $s.Cells.Item($r,$c).Text.ToString().Trim()}
 function Formula($c){$value=$c.Formula;return $value -is [string] -and $value.StartsWith("=")}
 function Map($m,$k){$p=$m.PSObject.Properties[$k];if($p){return $p.Value};return $null}
-function SetValue($c,$v){if(-not(Formula $c)){$c.Value2=$v}}
-function SetDate($c,$v){if($v -and -not(Formula $c)){$c.Value=[datetime]::ParseExact($v,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)}}
 function ClearValues($s,$r1,$r2,$c1,$c2){for($r=$r1;$r -le $r2;$r++){for($c=$c1;$c -le $c2;$c++){$cell=$s.Cells.Item($r,$c);if(-not(Formula $cell)){$cell.Value2=$null}}}}
 function SafeName($name,$index,$used){$safe=($name -replace '[\\/\?\*\[\]:]',' ').Trim();if(!$safe){$safe="Employee $index"};if($safe.Length -gt 31){$safe=$safe.Substring(0,31)};$candidate=$safe;$n=2;while($used.ContainsKey($candidate)){$candidate=$safe.Substring(0,[Math]::Min(27,$safe.Length))+" ($n)";$n++};$used[$candidate]=$true;return $candidate}
-function FillSummary($s,$data){ClearValues $s 3 14 2 5;$rows=@{};foreach($row in $data.summary){$rows[[int]$row.month]=$row};for($m=1;$m -le 12;$m++){$row=$rows[$m];if($null -eq $row){continue};$r=$m+2;SetValue $s.Cells.Item($r,2) ([double]$row.employeeGross);SetValue $s.Cells.Item($r,3) ([double]$row.directorGross);SetValue $s.Cells.Item($r,4) ([double]$row.employeeBonus);SetValue $s.Cells.Item($r,5) ([double]$row.directorBonus);SetValue $s.Cells.Item($r,6) ([double]$row.total)} }
-function FillEmployee($s,$employee,$data){$last=$s.UsedRange.Columns.Count;ClearValues $s 3 14 2 $last;$entries=@{};foreach($e in $employee.entries){$entries[[int]$e.month]=$e};for($m=1;$m -le 12;$m++){$e=$entries[$m];if($null -eq $e){continue};for($c=2;$c -le $last;$c++){$key=Norm(Txt $s 2 $c);$code=Map $data.itemHeaderCodes $key;$special=Map $data.specialHeaderCodes $key;$cell=$s.Cells.Item($m+2,$c);if($code){$value=Map $e.items $code;if($null -ne $value){SetValue $cell ([double]$value)}}elseif($special -eq 'gross'){SetValue $cell ([double]$e.gross)}elseif($special -eq 'deductions'){SetValue $cell ([double]$e.deductions)}elseif($special -eq 'net'){SetValue $cell ([double]$e.net)}}}
- $hireRow=0;for($r=15;$r -le $s.UsedRange.Rows.Count;$r++){if((Txt $s $r 1).Contains($data.labels.hireDate)){$hireRow=$r;break}};if($hireRow){SetDate $s.Cells.Item($hireRow,2) $employee.hireDate}
- $leaveDate=0;$leaveCols=@{};for($c=2;$c -le $last;$c++){$key=Norm(Txt $s 2 $c);if($data.leaveDateHeaderKeys -contains $key){$leaveDate=$c};$kind=Map $data.leaveHeaderCodes $key;if($kind){$leaveCols[$kind]=$c}};if($leaveDate){ClearValues $s 3 16 $leaveDate $last;$i=0;foreach($leave in $employee.leaves){if($i -ge 14){break};$r=3+$i;SetDate $s.Cells.Item($r,$leaveDate) $leave.dateFrom;$c=$leaveCols[$leave.type];if($c){SetValue $s.Cells.Item($r,$c) ([double]$leave.days)};if($last -gt $leaveDate){SetValue $s.Cells.Item($r,$last) $leave.reason};$i++}}
- $s.Cells.Item(1,1).Value2="$($data.labels.employeeTitle) $($employee.fullName) $([int]$data.year+543)"
+function FillSummary($s,$data){ClearValues $s 3 14 2 5;foreach($row in @($data.summary)){$r=[int]$row.month+2;$s.Cells.Item($r,2).Value2=[double]$row.employeeGross;$s.Cells.Item($r,3).Value2=[double]$row.directorGross;$s.Cells.Item($r,4).Value2=[double]$row.employeeBonus;$s.Cells.Item($r,5).Value2=[double]$row.directorBonus};$s.Calculate()}
+function FillPayroll($s,$employee,$data){
+ $last=$s.UsedRange.Columns.Count
+ ClearValues $s 3 14 2 $last
+ foreach($entry in @($employee.entries)){
+  $row=[int]$entry.month+2
+  for($column=2;$column -le $last;$column++){
+   $key=Norm(Txt $s 2 $column)
+   $code=Map $data.itemHeaderCodes $key
+   $special=Map $data.specialHeaderCodes $key
+   $cell=$s.Cells.Item($row,$column)
+   if($code){$value=Map $entry.items $code;if($null -ne $value -and -not(Formula $cell)){$cell.Value2=[double]$value}}
+   elseif($special -eq 'gross' -and -not(Formula $cell)){$cell.Value2=[double]$entry.gross}
+   elseif($special -eq 'deductions' -and -not(Formula $cell)){$cell.Value2=[double]$entry.deductions}
+   elseif($special -eq 'net' -and -not(Formula $cell)){$cell.Value2=[double]$entry.net}
+  }
+ }
+}
+function FillHireDate($s,$employee,$data){
+ if(-not $employee.hireDate){return}
+ for($row=15;$row -le $s.UsedRange.Rows.Count;$row++){
+  if((Txt $s $row 1).Contains($data.labels.hireDate)){
+   $cell=$s.Cells.Item($row,2)
+   $cell.Value=[datetime]::ParseExact($employee.hireDate,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)
+   return
+  }
+ }
+}
+function FillLeaves($s,$employee,$data){
+ $last=$s.UsedRange.Columns.Count
+ $dateColumn=0
+ $typeColumns=@{}
+ for($column=2;$column -le $last;$column++){
+  $key=Norm(Txt $s 2 $column)
+  if($data.leaveDateHeaderKeys -contains $key){$dateColumn=$column}
+  $kind=Map $data.leaveHeaderCodes $key
+  if($kind){$typeColumns[$kind]=$column}
+ }
+ if(-not $dateColumn){return}
+ ClearValues $s 3 16 $dateColumn $last
+ $index=0
+ foreach($leave in @($employee.leaves)){
+  if($index -ge 14){break}
+  $row=3+$index
+  $dateCell=$s.Cells.Item($row,$dateColumn)
+  $dateCell.Value=[datetime]::ParseExact($leave.dateFrom,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)
+  $typeColumn=$typeColumns[$leave.type]
+  if($typeColumn){$daysCell=$s.Cells.Item($row,$typeColumn);$daysCell.Value2=[double]$leave.days}
+  if($last -gt $dateColumn){$reasonCell=$s.Cells.Item($row,$last);$reasonCell.Value2=[string]$leave.reason}
+  $index++
+ }
+}
+function FillAdjustments($s,$employee,$data){
+ $titleRow=0
+ for($row=15;$row -le $s.UsedRange.Rows.Count;$row++){
+  if((Txt $s $row 1).Contains($data.labels.adjustmentTitle)){$titleRow=$row;break}
+ }
+ if(-not $titleRow){return}
+ $titleCell=$s.Cells.Item($titleRow,1)
+ $titleCell.Value2="$($data.labels.adjustmentTitle) $($employee.fullName)"
+ $startRow=$titleRow+2
+ $endRow=$s.UsedRange.Rows.Count
+ $neededRow=$startRow+@($employee.adjustments).Count-1
+ while($endRow -lt $neededRow){[void]$s.Rows.Item($endRow).Copy($s.Rows.Item($endRow+1));$endRow++}
+ ClearValues $s $startRow $endRow 1 6
+ $adjustmentRows=@($employee.adjustments)
+ for($index=0;$index -lt $adjustmentRows.Count;$index++){
+  $record=$adjustmentRows[$index]
+  $row=$startRow+$index
+  $dateCell=$s.Cells.Item($row,1)
+  $dateCell.Value=[datetime]::ParseExact($record.effectiveDate,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)
+ }
+ for($index=0;$index -lt $adjustmentRows.Count;$index++){
+  $row=$startRow+$index
+  $salaryCell=$s.Cells.Item($row,2)
+  $salaryCell.Value2=[double]$employee.adjustments[$index].newSalary
+  $amountCell=$s.Cells.Item($row,3)
+  $amountCell.Value2=([double]$employee.adjustments[$index].newSalary-[double]$employee.adjustments[$index].oldSalary)
+  if([double]$employee.adjustments[$index].oldSalary -ne 0){
+   $percentCell=$s.Cells.Item($row,4)
+   $percentCell.Value2=([double]$employee.adjustments[$index].newSalary-[double]$employee.adjustments[$index].oldSalary)/[double]$employee.adjustments[$index].oldSalary
+  }
+  $reasonCell=$s.Cells.Item($row,5)
+  $reasonCell.Value2=[string]$employee.adjustments[$index].reason
+  if($employee.adjustments[$index].note -and -not($employee.adjustments[$index].note.StartsWith('Annual historical import'))){
+   if($employee.adjustments[$index].reason){$reasonCell.Value2="$($employee.adjustments[$index].reason) - $($employee.adjustments[$index].note)"}else{$reasonCell.Value2=[string]$employee.adjustments[$index].note}
+  }
+ }
+}
+function FillEmployee($s,$employee,$data){
+ FillPayroll $s $employee $data
+ FillHireDate $s $employee $data
+ FillLeaves $s $employee $data
+ FillAdjustments $s $employee $data
+ $titleCell=$s.Cells.Item(1,1)
+ $titleCell.Value2="$($data.labels.employeeTitle) $($employee.fullName) $([int]$data.year+543)"
+ $s.Calculate()
 }
 $template=(Resolve-Path -LiteralPath $TemplatePath).Path;$output=[IO.Path]::GetFullPath($OutputPath);$parent=Split-Path -Parent $output;if(-not(Test-Path $parent)){New-Item -ItemType Directory -Path $parent | Out-Null};if(Test-Path $output){Remove-Item $output -Force};$data=Get-Content -Encoding UTF8 -Raw -LiteralPath $DataPath | ConvertFrom-Json
 $excel=$null;$book=$null

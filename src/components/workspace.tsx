@@ -1399,7 +1399,7 @@ function EmployeesPage({
       <PageHeading
         title="พนักงาน"
         description="ข้อมูลบุคลากรและประวัติเงินเดือน"
-        action={<div className="heading-actions">{latestAnnualYear && <a className="button button-secondary" href={`/api/reports/annual?year=${latestAnnualYear}`}><ArrowDownToLine size={17} />ดาวน์โหลด Annual Excel {latestAnnualYear + 543}</a>}<Link className="button button-primary" href="/import"><Plus size={17} />นำเข้า Payroll</Link></div>}
+        action={latestAnnualYear ? <a className="button button-primary" href={`/api/reports/annual?year=${latestAnnualYear}`}><ArrowDownToLine size={17} />ดาวน์โหลด Annual Excel {latestAnnualYear + 543}</a> : null}
       />
       <div className="toolbar">
         <div className="search-box">
