@@ -696,7 +696,7 @@ select {
   font-weight: 600;
 }
 .bar-chart {
-  height: 172px;
+  height: 236px;
   padding: 16px 22px 12px;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -2104,7 +2104,7 @@ select {
 .settings-form textarea { resize: vertical; }
 .settings-form .settings-wide { flex-basis: 100%; }
 .settings-form .button { min-height: 40px; }
-.chart-empty { min-height: 170px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #74867a; text-align: center; }
+.chart-empty { min-height: 234px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #74867a; text-align: center; }
 .chart-empty strong { color: #2b4938; font-size: 15px; }
 .chart-empty span { font-size: 13px; }
 .year-comparison { display: flex; flex-wrap: wrap; gap: 8px 30px; padding: 10px 16px; margin: -10px 0 18px; border: 1px solid #dce6df; border-radius: 7px; background: #f8fbf9; }
