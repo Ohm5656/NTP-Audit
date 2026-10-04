@@ -1381,6 +1381,56 @@ function CompanyReport({
   );
 }
 
+
+type AnnualExportStatus = "queued" | "processing" | "ready" | "failed";
+type AnnualExportJobView = { id: string; status: AnnualExportStatus; errorMessage?: string | null };
+
+function AnnualExportButton({ year }: { year: number }) {
+  const [job, setJob] = useState<AnnualExportJobView | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!job || (job.status !== "queued" && job.status !== "processing")) return;
+    let cancelled = false;
+    const refreshJob = async () => {
+      try {
+        const response = await fetch(`/api/reports/annual/${job.id}`, { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (!cancelled && response.ok && payload) setJob({ id: payload.id, status: payload.status, errorMessage: payload.errorMessage });
+      } catch {
+        // The next interval retries while the current progress remains visible.
+      }
+    };
+    void refreshJob();
+    const timer = window.setInterval(() => void refreshJob(), 2000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [job]);
+
+  const createExport = async () => {
+    setSubmitting(true);
+    try {
+      const payload = await postJson("/api/reports/annual", { year });
+      setJob({ id: payload.id, status: payload.status, errorMessage: payload.errorMessage });
+    } catch (error) {
+      setJob({ id: "", status: "failed", errorMessage: error instanceof Error ? error.message : "บันทึกข้อมูลไม่สำเร็จ" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (job?.status === "ready") return <a className="button button-primary" href={`/api/reports/annual/${job.id}/download`}><ArrowDownToLine size={17} />ดาวน์โหลด Annual Excel {year + 543}</a>;
+  const busy = submitting || job?.status === "queued" || job?.status === "processing";
+  const label = busy ? "Annual Excel..." : `ดาวน์โหลด Annual Excel ${year + 543}`;
+  return (
+    <div className="annual-export-action">
+      <button type="button" className="button button-primary" disabled={busy} onClick={() => void createExport()}>
+        <ArrowDownToLine size={17} />{label}
+      </button>
+      {job?.status === "failed" && job.errorMessage && <span className="form-error">{job.errorMessage}</span>}
+    </div>
+  );
+}
+
 function EmployeesPage({
   search,
   setSearch,
@@ -1405,7 +1455,7 @@ function EmployeesPage({
       <PageHeading
         title="พนักงาน"
         description="ข้อมูลบุคลากรและประวัติเงินเดือน"
-        action={latestAnnualYear ? <a className="button button-primary" href={`/api/reports/annual?year=${latestAnnualYear}`}><ArrowDownToLine size={17} />ดาวน์โหลด Annual Excel {latestAnnualYear + 543}</a> : null}
+        action={latestAnnualYear ? <AnnualExportButton year={latestAnnualYear} /> : null}
       />
       <div className="toolbar">
         <div className="search-box">

@@ -2243,3 +2243,18 @@ thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important;
   .coverage-card { padding: 19px 16px; }
   .metric { min-height: 108px; padding: 17px 16px; }
 }
+
+.annual-export-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.annual-export-action .form-error {
+  max-width: 280px;
+  text-align: right;
+}
+@media (max-width: 600px) {
+  .annual-export-action { align-items: flex-start; margin-top: 12px; }
+  .annual-export-action .form-error { text-align: left; }
+}

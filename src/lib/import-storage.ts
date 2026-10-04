@@ -81,6 +81,28 @@ export async function deletePrivateFile(key: string): Promise<void> {
   if (error) throw new Error(`Supabase Storage deletion failed: ${error.message}`);
 }
 
+/** Creates a short-lived URL for a Worker to read a single private workbook. */
+export async function createPrivateDownloadUrl(key: string, expiresIn = 600): Promise<string> {
+  validateKey(key);
+  const client = getStorageClient();
+  if (!client) throw new Error("Supabase Storage is required for Worker exports");
+  const { data, error } = await client.storage.from(bucketName()).createSignedUrl(key, expiresIn);
+  if (error || !data?.signedUrl)
+    throw new Error(`Supabase Storage signed download failed: ${error?.message || "no URL returned"}`);
+  return data.signedUrl;
+}
+
+/** Creates a one-time destination URL; the Worker can upload without any Supabase secret. */
+export async function createPrivateUploadUrl(key: string): Promise<string> {
+  validateKey(key);
+  const client = getStorageClient();
+  if (!client) throw new Error("Supabase Storage is required for Worker exports");
+  const { data, error } = await client.storage.from(bucketName()).createSignedUploadUrl(key);
+  if (error || !data?.signedUrl)
+    throw new Error(`Supabase Storage signed upload failed: ${error?.message || "no URL returned"}`);
+  return data.signedUrl;
+}
+
 /** Materializes a private file briefly when an Excel library needs a filesystem path. */
 export async function withPrivateUploadPath<T>(key: string, action: (filePath: string) => Promise<T>): Promise<T> {
   validateKey(key);
