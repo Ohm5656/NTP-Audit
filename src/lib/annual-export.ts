@@ -1,6 +1,5 @@
 import { normalizeHeader } from "./excel-import";
 import { db } from "./db";
-import { uploadPath } from "./import-storage";
 
 export type AnnualExportInput = {
   year: number;
@@ -34,7 +33,7 @@ const leaveHeaders: Array<[string, AnnualExportInput["employees"][number]["leave
   ["ลากิจ", "personal"], ["ลาพักร้อน", "vacation"], ["พักร้อน", "vacation"], ["พักร้อน 7 วัน", "vacation"], ["ลาป่วย", "sick"], ["ลาไม่รับค่าจ้าง", "unpaid"], ["ไม่รับค่าจ้าง", "unpaid"], ["ขาดงาน", "absence"],
 ];
 
-export async function getAnnualExportInput(companyId: string, year: number): Promise<{ templatePath: string; input: AnnualExportInput }> {
+export async function getAnnualExportInput(companyId: string, year: number): Promise<{ templateStorageKey: string; input: AnnualExportInput }> {
   const [template, employees, entries, items, leaves, adjustments, types] = await Promise.all([
     db().query<{ storage_key: string }>("SELECT storage_key FROM annual_templates WHERE company_id=$1 LIMIT 1", [companyId]),
     db().query<EmployeeRow>("SELECT e.id,e.code,e.full_name,e.employee_type,e.hire_date::text FROM employees e WHERE e.company_id=$1 AND EXISTS (SELECT 1 FROM active_payroll_entries p WHERE p.employee_id=e.id AND p.year=$2) ORDER BY CASE e.employee_type WHEN 'employee' THEN 0 ELSE 1 END,e.code", [companyId, year]),
@@ -88,5 +87,5 @@ export async function getAnnualExportInput(companyId: string, year: number): Pro
     summary,
     employees: exportEmployees,
   };
-  return { templatePath: uploadPath(template.rows[0].storage_key), input };
+  return { templateStorageKey: template.rows[0].storage_key, input };
 }

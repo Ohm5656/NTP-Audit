@@ -6,6 +6,7 @@ import path from "node:path";
 import { z } from "zod";
 import { requireRole, authErrorResponse } from "@/lib/auth";
 import { getAnnualExportInput } from "@/lib/annual-export";
+import { withPrivateUploadPath } from "@/lib/import-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,10 +25,12 @@ export async function GET(request: Request) {
   const dataPath = path.join(exportDirectory, `${id}.json`);
   const outputPath = path.join(exportDirectory, `${id}.xlsx`);
   try {
-    const { templatePath, input } = await getAnnualExportInput(user.companyId, parsed.data.year);
+    const { templateStorageKey, input } = await getAnnualExportInput(user.companyId, parsed.data.year);
     await fs.mkdir(exportDirectory, { recursive: true, mode: 0o700 });
     await fs.writeFile(dataPath, JSON.stringify(input), { mode: 0o600 });
-    await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(process.cwd(), "scripts", "generate-annual-export.ps1"), "-TemplatePath", templatePath, "-DataPath", dataPath, "-OutputPath", outputPath], { windowsHide: true, maxBuffer: 1024 * 1024 });
+    await withPrivateUploadPath(templateStorageKey, async (templatePath) => {
+      await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(process.cwd(), "scripts", "generate-annual-export.ps1"), "-TemplatePath", templatePath, "-DataPath", dataPath, "-OutputPath", outputPath], { windowsHide: true, maxBuffer: 1024 * 1024 });
+    });
     const bytes = await fs.readFile(outputPath);
     return new Response(new Uint8Array(bytes), { headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

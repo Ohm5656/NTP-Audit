@@ -7,10 +7,9 @@ import {
   type SourceRow,
   type ImportIssue,
 } from "./excel-import";
-import { uploadPath } from "./import-storage";
+import { readPrivateFile, withPrivateUploadPath } from "./import-storage";
 import { identityHash } from "./sensitive";
 import { createHash } from "node:crypto";
-import fs from "node:fs/promises";
 
 export type MappingChoice =
   | { action: "existing"; code: string }
@@ -67,7 +66,7 @@ export async function parseStaged(
   const upload = await getStagedUpload(uploadId, companyId);
   if (!upload || upload.status !== "staged")
     throw new Error("ไม่พบไฟล์ที่รอตรวจสอบ");
-  const file = await fs.readFile(uploadPath(upload.storage_key));
+  const file = await readPrivateFile(upload.storage_key);
   if (createHash("sha256").update(file).digest("hex") !== upload.sha256)
     throw new Error("ไฟล์ต้นฉบับเปลี่ยนไปหลังอัปโหลด");
   const types = await db().query<{ code: string; aliases: string[] }>(
@@ -90,10 +89,8 @@ export async function parseStaged(
         .map((m) => m.normalized_header),
     ],
   }));
-  const parsed = await parseWorkbook(
-    uploadPath(upload.storage_key),
-    sheetName,
-    aliasRows,
+  const parsed = await withPrivateUploadPath(upload.storage_key, (filePath) =>
+    parseWorkbook(filePath, sheetName, aliasRows),
   );
   return { upload, parsed };
 }

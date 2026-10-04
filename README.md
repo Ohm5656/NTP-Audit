@@ -25,12 +25,11 @@ Internal payroll platform for importing monthly Excel files, managing employee p
 **Current**
 
 - Next.js, TypeScript, and project CSS/design tokens
-- PostgreSQL and private server file storage for original Excel workbooks
+- PostgreSQL with an optional Supabase PostgreSQL target and private Supabase Storage for original Excel workbooks
 - Docker and npm for local development
 
 **Future plan**
 
-- Supabase PostgreSQL and private Storage after a company project is created
 - Tailwind CSS if the team decides to migrate the current CSS system
 
 ## Workflow
@@ -60,6 +59,6 @@ On Windows PowerShell, use `Copy-Item .env.example .env.local` instead of `cp`. 
 
 The sample `เดือน 9.xlsx` defaults to the `คิดค่าจ้าง` worksheet; confirm the sheet and payroll period before saving. Duplicate imports require an explicit replacement and retain the previous version. Annual employee reports include every stored income and deduction type, leave, and salary adjustments. Export is available for monthly payroll, annual employee, and company reports.
 
-See [Supabase setup](docs/setup-supabase.md) for the later migration and [product plan](docs/product-plan.md) for the session scope and validation results.
+See [Supabase setup](docs/setup-supabase.md) for connecting a project and migrating existing data, and [product plan](docs/product-plan.md) for the session scope and validation results.
 
 Admin can create, deactivate, and reset user accounts in **Settings**. Payroll users can import and edit payroll data; viewers can read dashboards and reports. Settings also show saved Excel mappings and company details. The app can be installed in Edge or Chrome as a PWA over HTTPS or localhost; payroll data is never cached for offline use.

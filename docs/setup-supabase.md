@@ -1,13 +1,59 @@
-# เตรียม Supabase สำหรับ NTP Audit
+# Connect NTP Audit to Supabase
 
-โค้ดพร้อมใช้ PostgreSQL ของ Supabase ผ่าน `DATABASE_URL` แต่ยังไม่มีโปรเจกต์ของบริษัท จึงยังไม่ได้ทดสอบการเชื่อมต่อจริงกับ Supabase คู่มือนี้ใช้เมื่อสร้างโปรเจกต์แล้ว โดยไม่ต้องส่งรหัสผ่านหรือคีย์ในแชต
+The application continues to use its server-side PostgreSQL queries and its own
+role based login. Supabase supplies the managed PostgreSQL database and the
+private workbook bucket; no browser receives the database password or the
+Storage service-role key.
 
-1. สร้าง Supabase project ในพื้นที่ที่บริษัทอนุมัติ และเก็บรหัสผ่านฐานข้อมูลในตัวจัดการ secret ของบริษัท
-2. เปิดหน้า **Connect** ของโปรเจกต์ คัดลอก PostgreSQL connection string แบบ direct หรือ session pooler ที่เข้ากับสภาพแวดล้อมรันแอป ใช้ TLS ตามค่าใน connection string ที่ Supabase ให้
-3. ตั้งค่า `.env.local` บนเครื่องรันแอป: `DATABASE_URL` เป็น connection string นั้น, `SESSION_SECRET` เป็นค่าสุ่มอย่างน้อย 32 ตัวอักษร, `ADMIN_EMAIL`, `ADMIN_PASSWORD` และ `COMPANY_NAME` สำหรับสร้างบัญชีครั้งแรก ห้าม commit `.env.local`
-4. รัน `npm install` และ `npm run db:setup` เพื่อสร้างตาราง รายการจ่ายเริ่มต้น และบัญชี admin แล้วลบ `ADMIN_PASSWORD` ออกจากไฟล์ตั้งค่าเมื่อสร้างสำเร็จ รัน `npm run dev` สำหรับทดสอบหรือ `npm run build` และ `npm start` สำหรับเซิร์ฟเวอร์จริง
-5. ทดสอบ Login, นำเข้าไฟล์ตัวอย่างในสภาพแวดล้อมทดสอบ, ตรวจยอดและส่งออก ก่อนนำเข้าข้อมูลจริง สำรองฐานข้อมูลและไฟล์ต้นฉบับพร้อมกัน
+## 1. Link the project and apply its schema
 
-ไฟล์ Excel ต้นฉบับเก็บใน `PRIVATE_UPLOAD_DIR` บนเครื่องเซิร์ฟเวอร์ ไม่ได้เก็บใน Supabase Storage ในเวอร์ชันนี้ โฮสต์ที่ใช้ต้องมีพื้นที่ไฟล์ถาวรและสำรองได้ ห้ามใช้พื้นที่ไฟล์ชั่วคราวของ serverless สำหรับไฟล์จริง หากย้ายไปใช้ Supabase Storage ภายหลัง ต้องสร้าง private bucket และเปลี่ยน storage adapter ก่อนย้ายโฮสต์
+Run these commands from the repository after logging in with `npx supabase login`:
 
-ระบบ Login ใช้ตาราง `users` และ session cookie ภายในแอป ยังไม่ใช้ Supabase Auth ดังนั้นการเชื่อมฐานข้อมูล Supabase ไม่ได้สร้างบัญชีผู้ใช้ใน Supabase Auth โดยอัตโนมัติ
+```powershell
+npx supabase link --project-ref iumzavjffaxbrlelfrpg
+npx supabase db push
+```
+
+`supabase link` asks for the project database password. Enter it directly in
+the terminal. Do not put it in chat or commit it to Git. The migration creates
+the application tables, turns on row-level security for every payroll table,
+and creates the private `ntp-private-uploads` bucket.
+
+## 2. Configure server secrets
+
+In `.env.local`, retain the existing `DATABASE_URL` temporarily as the local
+source database, then add:
+
+```dotenv
+SUPABASE_DATABASE_URL=<Transaction pooler connection string from Supabase Connect>
+SUPABASE_URL=https://iumzavjffaxbrlelfrpg.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service_role key from Supabase Settings → API>
+SUPABASE_STORAGE_BUCKET=ntp-private-uploads
+```
+
+The production `DATABASE_URL` will later be set to the same value as
+`SUPABASE_DATABASE_URL`. Keep the service-role key server-only: do not prefix
+it with `NEXT_PUBLIC_`, and do not add it to Vercel browser environment values.
+
+## 3. Migrate data and original workbooks once
+
+The next command copies all existing NTP records and the original `.xlsx`
+files from `.data/uploads` to the new private bucket. It deliberately requires
+`--confirm` because it replaces NTP records in the target project.
+
+```powershell
+npm run db:migrate:supabase -- --confirm
+```
+
+After it succeeds, set `DATABASE_URL` to the Supabase pooler connection string
+and restart `npm run dev`. Login sessions do not transfer, so sign in once with
+the existing Admin account. Test a monthly original download and an Annual
+export before deploying.
+
+## 4. Production environment
+
+Set `DATABASE_URL`, `SESSION_SECRET`, `SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_STORAGE_BUCKET` in the production
+host's server environment. Set `PRIVATE_UPLOAD_DIR` only when retaining a local
+development fallback. The application uses the private bucket automatically
+when both Supabase URL and service-role key are configured.

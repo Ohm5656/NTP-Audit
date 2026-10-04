@@ -1,9 +1,8 @@
 import { randomUUID, createHash } from "node:crypto";
-import fs from "node:fs/promises";
 import { db } from "./db";
 import { normalizeName } from "./excel-import";
 import { parseHistoricalWorkbook } from "./historical-import";
-import { ensureUploadDirectory, uploadPath } from "./import-storage";
+import { deletePrivateFile, withPrivateUploadPath, writePrivateFile } from "./import-storage";
 
 type EmployeeRow = { id: string; normalized_name: string; full_name: string };
 type HistoricalImportRow = { id: string; storage_key: string; metadata: unknown };
@@ -48,12 +47,11 @@ export async function importHistoricalAnnual({ companyId, userId, filename, buff
   if (buffer.length === 0 || buffer.length > 25 * 1024 * 1024) throw new Error("ขนาดไฟล์ไม่อยู่ในขอบเขตที่รองรับ");
   const sha256 = createHash("sha256").update(buffer).digest("hex");
   const storageKey = `${randomUUID()}.xlsx`;
-  await ensureUploadDirectory();
-  await fs.writeFile(uploadPath(storageKey), buffer, { mode: 0o600 });
+  await writePrivateFile(storageKey, buffer);
   let replacedStorageKey: string | null = null;
 
   try {
-    const parsed = await parseHistoricalWorkbook(uploadPath(storageKey));
+    const parsed = await withPrivateUploadPath(storageKey, parseHistoricalWorkbook);
     const client = await db().connect();
     try {
       await client.query("BEGIN");
@@ -106,7 +104,7 @@ export async function importHistoricalAnnual({ companyId, userId, filename, buff
 
       await client.query("INSERT INTO audit_logs(company_id,actor_id,action,entity_type,entity_id,after_data) VALUES($1,$2,'import','historical_import',$3,$4)", [companyId, userId, historyId, JSON.stringify({ years: parsed.years, matched, startDates, leave, salaryAdjustments, unmatched: unmatched.length, scope: "employment_leave_salary_adjustments" })]);
       await client.query("COMMIT");
-      if (replacedStorageKey) await fs.unlink(uploadPath(replacedStorageKey)).catch(() => {});
+      if (replacedStorageKey) await deletePrivateFile(replacedStorageKey).catch(() => {});
       return { years: parsed.years, employees: parsed.employees.length, matched, startDates, leave, salaryAdjustments, unmatched: unmatched.length };
     } catch (error) {
       await client.query("ROLLBACK");
@@ -115,7 +113,7 @@ export async function importHistoricalAnnual({ companyId, userId, filename, buff
       client.release();
     }
   } catch (error) {
-    await fs.unlink(uploadPath(storageKey)).catch(() => {});
+    await deletePrivateFile(storageKey).catch(() => {});
     throw error;
   }
 }

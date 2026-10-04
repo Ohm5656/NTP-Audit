@@ -1,8 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
 import ExcelJS from "exceljs";
 import { db } from "./db";
-import { ensureUploadDirectory, uploadPath } from "./import-storage";
+import { deletePrivateFile, writePrivateFile } from "./import-storage";
 
 type ExistingTemplate = { id: string; storage_key: string };
 
@@ -26,8 +25,7 @@ export async function replaceAnnualTemplate({ companyId, userId, filename, buffe
   await validateTemplate(buffer);
   const sha256 = createHash("sha256").update(buffer).digest("hex");
   const storageKey = `${randomUUID()}.xlsx`;
-  await ensureUploadDirectory();
-  await fs.writeFile(uploadPath(storageKey), buffer, { mode: 0o600 });
+  await writePrivateFile(storageKey, buffer);
   let replacedStorageKey: string | null = null;
 
   try {
@@ -49,7 +47,7 @@ export async function replaceAnnualTemplate({ companyId, userId, filename, buffe
         [companyId, userId, previous ? "replace" : "create", template.rows[0].id, previous ? JSON.stringify({ storageKey: previous.storage_key }) : null, JSON.stringify({ filename, sha256 })],
       );
       await client.query("COMMIT");
-      if (replacedStorageKey) await fs.unlink(uploadPath(replacedStorageKey)).catch(() => {});
+      if (replacedStorageKey) await deletePrivateFile(replacedStorageKey).catch(() => {});
       return { originalFilename: filename };
     } catch (error) {
       await client.query("ROLLBACK");
@@ -58,7 +56,7 @@ export async function replaceAnnualTemplate({ companyId, userId, filename, buffe
       client.release();
     }
   } catch (error) {
-    await fs.unlink(uploadPath(storageKey)).catch(() => {});
+    await deletePrivateFile(storageKey).catch(() => {});
     throw error;
   }
 }

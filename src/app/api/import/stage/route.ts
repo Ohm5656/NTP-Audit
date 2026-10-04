@@ -1,10 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
 import path from "node:path";
 import { requireRole, authErrorResponse } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { parseWorkbook } from "@/lib/excel-import";
-import { ensureUploadDirectory, uploadPath } from "@/lib/import-storage";
+import { deletePrivateFile, withPrivateUploadPath, writePrivateFile } from "@/lib/import-storage";
 import { badRequest, isSameOrigin } from "@/lib/request";
 
 export const runtime = "nodejs";
@@ -34,15 +33,13 @@ export async function POST(request: Request) {
       .basename(file.name)
       .replace(/[\x00-\x1f\x7f]/g, "")
       .slice(0, 240);
-    await ensureUploadDirectory();
-    const location = uploadPath(key);
-    await fs.writeFile(location, buffer, { flag: "wx", mode: 0o600 });
+    await writePrivateFile(key, buffer);
     try {
       const types = await db().query<{ code: string; aliases: string[] }>(
         "SELECT code,aliases FROM payroll_item_types WHERE company_id=$1 AND active=true",
         [user.companyId],
       );
-      const parsed = await parseWorkbook(location, undefined, types.rows);
+      const parsed = await withPrivateUploadPath(key, (filePath) => parseWorkbook(filePath, undefined, types.rows));
       const sha256 = createHash("sha256").update(buffer).digest("hex");
       await db().query(
         "INSERT INTO import_uploads(id,company_id,uploaded_by,original_filename,storage_key,sha256) VALUES($1,$2,$3,$4,$5,$6)",
@@ -66,7 +63,7 @@ export async function POST(request: Request) {
         issueCount: parsed.issues.length,
       });
     } catch (error) {
-      await fs.unlink(location).catch(() => {});
+      await deletePrivateFile(key).catch(() => {});
       throw error;
     }
   } catch (error) {
