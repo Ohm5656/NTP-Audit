@@ -70,6 +70,29 @@ function asDate(value: ExcelJS.CellValue, yearHint: number): string | null {
   return month < 1 || month > 12 || day < 1 || day > 31 ? null : `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+function asDateRange(value: ExcelJS.CellValue, yearHint: number): { dateFrom: string; dateTo: string } | null {
+  const raw = value && typeof value === "object" && "result" in value ? value.result : value;
+  if (typeof raw === "string") {
+    const range = /^\s*(\d{1,2})\s*-\s*(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{2,4})\s*$/.exec(raw);
+    if (range) {
+      const [, fromDay, toDay, monthText, yearText] = range;
+      let year = Number(yearText);
+      if (year < 100) year += 2500;
+      if (year > 2400) year -= 543;
+      if (year < 1900 || year > 2200) year = yearHint;
+      const month = Number(monthText);
+      const start = Number(fromDay);
+      const end = Number(toDay);
+      if (month >= 1 && month <= 12 && start >= 1 && start <= 31 && end >= start && end <= 31) {
+        const prefix = `${year}-${String(month).padStart(2, "0")}-`;
+        return { dateFrom: `${prefix}${String(start).padStart(2, "0")}`, dateTo: `${prefix}${String(end).padStart(2, "0")}` };
+      }
+    }
+  }
+  const date = asDate(value, yearHint);
+  return date ? { dateFrom: date, dateTo: date } : null;
+}
+
 function findRow(sheet: ExcelJS.Worksheet, phrase: string): number | undefined {
   return Array.from({ length: sheet.rowCount }, (_, index) => index + 1).find((row) => text(sheet.getCell(row, 1).value).includes(phrase));
 }
@@ -136,13 +159,13 @@ export async function parseHistoricalWorkbook(filePath: string): Promise<Histori
     const startDate = startRow ? asDate(sheet.getCell(startRow, 2).value, year) : null;
     const leave: HistoricalLeave[] = [];
     for (let row = 3; row < (startRow || 19); row++) {
-      const date = asDate(sheet.getCell(row, 18).value, year);
-      if (!date) continue;
+      const dateRange = asDateRange(sheet.getCell(row, 18).value, year);
+      if (!dateRange) continue;
       for (const [column, header] of headers) {
         const type = leaveMap[normalizeHeader(header)];
         const days = number(sheet.getCell(row, column).value);
         if (type && days !== null && days > 0) {
-          leave.push({ dateFrom: date, dateTo: date, type, days, reason: text(sheet.getCell(row, 24).value) });
+          leave.push({ ...dateRange, type, days, reason: text(sheet.getCell(row, 24).value) });
         }
       }
     }

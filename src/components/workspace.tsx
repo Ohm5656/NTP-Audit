@@ -407,6 +407,10 @@ function pageLabel(path: string) {
   return "ตั้งค่า";
 }
 
+function thaiDateRange(dateFrom: string, dateTo: string) {
+  return dateFrom === dateTo ? thaiDate(dateFrom) : `${thaiDate(dateFrom)} – ${thaiDate(dateTo)}`;
+}
+
 function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1258,7 +1262,7 @@ function EmployeeProfile({ id, selectedAnnualYear }: { id: string; selectedAnnua
         </div>
       )}
       {tab === "annual" && <EmployeeAnnualTable employeeId={employee.id} selectedYear={selectedAnnualYear > 1900 ? selectedAnnualYear : (monthly?.year || new Date().getFullYear())} />}
-      {tab === "leave" && (<Section title="ประวัติการลา" action={<span className="section-subtle">{employeeLeaves.length} รายการ</span>}>{employeeLeaves.length ? <><div className="history-summary">{Object.entries(leaveTotals).map(([type, days]) => <div key={type}><strong>{days}</strong><span>{type}</span></div>)}</div><div className="history-table-wrap"><table className="history-table"><thead><tr><th>วันที่</th><th>ประเภท</th><th>เหตุผล</th><th className="numeric">จำนวนวัน</th></tr></thead><tbody>{employeeLeaves.map((item) => <tr key={item.id}><td>{thaiDate(item.date)}</td><td><span className="history-tag">{item.type}</span></td><td>{item.reason || "—"}</td><td className="numeric history-value">{item.days.toFixed(2)}</td></tr>)}</tbody></table></div></> : <p className="empty-inline">ยังไม่มีบันทึกการลา</p>}</Section>)}
+      {tab === "leave" && (<Section title="ประวัติการลา" action={<span className="section-subtle">{employeeLeaves.length} รายการ</span>}>{employeeLeaves.length ? <><div className="history-summary">{Object.entries(leaveTotals).map(([type, days]) => <div key={type}><strong>{days}</strong><span>{type}</span></div>)}</div><div className="history-table-wrap"><table className="history-table"><thead><tr><th>วันที่</th><th>ประเภท</th><th>เหตุผล</th><th className="numeric">จำนวนวัน</th></tr></thead><tbody>{employeeLeaves.map((item) => <tr key={item.id}><td>{thaiDateRange(item.date, item.dateTo)}</td><td><span className="history-tag">{item.type}</span></td><td>{item.reason || "—"}</td><td className="numeric history-value">{item.days.toFixed(2)}</td></tr>)}</tbody></table></div></> : <p className="empty-inline">ยังไม่มีบันทึกการลา</p>}</Section>)}
       {tab === "salary" && (<Section title="ประวัติปรับเงินเดือน" action={<span className="section-subtle">{employeeAdjustments.length} รายการ</span>}>{employeeAdjustments.length ? <div className="salary-history">{employeeAdjustments.map((item) => { const change = item.newSalary - item.oldSalary; const percent = item.oldSalary ? (change / item.oldSalary) * 100 : 0; return <article className="salary-history-row" key={item.id}><div className="salary-history-date">{thaiDate(item.date)}</div><div className="salary-history-amount"><strong>฿{money(item.oldSalary)}</strong><span>→</span><strong>฿{money(item.newSalary)}</strong></div><div><span className="salary-change">{change >= 0 ? "+" : ""}฿{money(change)} · {percent >= 0 ? "+" : ""}{percent.toFixed(1)}%</span><p>{item.reason || "ไม่มีหมายเหตุ"}</p></div></article>; })}</div> : <p className="empty-inline">ยังไม่มีประวัติการปรับเงินเดือน</p>}</Section>)}
     </>
   );
@@ -1330,7 +1334,7 @@ function LeavePage() {
             <tbody>
               {shown.map((item) => (
                 <tr key={item.id}>
-                  <td>{thaiDate(item.date)}</td>
+                  <td>{thaiDateRange(item.date, item.dateTo)}</td>
                   <td>
                     <Link
                       href={`/employees/${item.employeeId}`}
