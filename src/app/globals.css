@@ -249,6 +249,17 @@ select {
   place-items: center;
   font-weight: 700;
 }
+.user-block .company-avatar {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #cfe0d3;
+}
+.user-block .company-avatar img {
+  width: 100%;
+  height: 100%;
+  padding: 3px;
+  object-fit: contain;
+}
 .user-block div {
   flex: 1;
 }

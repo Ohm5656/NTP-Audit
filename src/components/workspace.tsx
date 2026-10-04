@@ -338,7 +338,7 @@ export default function Workspace({ user }: { user?: AppUser }) {
                 ข้อมูลจากฐานข้อมูลภายใน
               </div>
               <div className="user-block">
-                <span className="avatar">บ</span>
+                <span className="avatar company-avatar"><img src="/logo.png" alt="โลโก้บริษัท NTP" /></span>
                 <div>
                   <strong>{user?.email || "ผู้ใช้งาน"}</strong>
                   <small>{user?.role || "Admin"}</small>
