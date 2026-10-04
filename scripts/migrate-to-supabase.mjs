@@ -19,7 +19,12 @@ if (!sourceUrl || !targetUrl || !supabaseUrl || !serviceRoleKey) {
 }
 
 const source = new pg.Pool({ connectionString: sourceUrl, max: 1 });
-const target = new pg.Pool({ connectionString: targetUrl, max: 1 });
+const targetHost = new URL(targetUrl).hostname;
+const target = new pg.Pool({
+  connectionString: targetUrl,
+  max: 1,
+  ...(targetHost.endsWith(".pooler.supabase.com") ? { ssl: { rejectUnauthorized: false } } : {}),
+});
 const storage = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -49,18 +54,21 @@ const truncateTables = [
   "leave_records", "salary_adjustments", "historical_imports", "annual_templates",
   "sessions", "employees", "users", "companies",
 ];
+const jsonColumns = new Set(["metadata", "warnings", "before_data", "after_data"]);
 
 function quoteIdentifier(identifier) {
-  if (!/^[a-z_]+$/.test(identifier)) throw new Error("Unsafe identifier");
+  if (!/^[a-z_][a-z0-9_]*$/.test(identifier)) throw new Error(`Unsafe identifier: ${identifier}`);
   return `"${identifier}"`;
 }
 
 async function copyRows(client, name, rows) {
   if (!rows.length) return;
   const columns = Object.keys(rows[0]);
-  const columnList = columns.map(quoteIdentifier).join(",");
+  const columnList = columns.map((column) => quoteIdentifier(column)).join(",");
   for (const row of rows) {
-    const values = columns.map((column) => row[column]);
+    const values = columns.map((column) =>
+      jsonColumns.has(column) && row[column] !== null ? JSON.stringify(row[column]) : row[column],
+    );
     const placeholders = values.map((_, index) => `$${index + 1}`).join(",");
     await client.query(
       `INSERT INTO public.${quoteIdentifier(name)} (${columnList}) VALUES (${placeholders})`,

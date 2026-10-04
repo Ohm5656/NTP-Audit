@@ -1,4 +1,5 @@
-import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import fs from "node:fs";
+import { Pool, type PoolClient, type PoolConfig, type QueryResultRow } from "pg";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -8,7 +9,20 @@ declare global {
 export function db(): Pool {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured");
   if (!global.ntpPool) {
-    global.ntpPool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10, idleTimeoutMillis: 30000 });
+    const url = new URL(process.env.DATABASE_URL);
+    const usesSupabaseTransactionPooler = url.hostname.endsWith(".pooler.supabase.com") && url.port === "6543";
+    const config: PoolConfig = {
+      connectionString: process.env.DATABASE_URL,
+      max: usesSupabaseTransactionPooler ? 1 : 10,
+      idleTimeoutMillis: 30000,
+    };
+    if (usesSupabaseTransactionPooler) {
+      const certificatePath = process.env.SUPABASE_SSL_ROOT_CERT;
+      config.ssl = certificatePath
+        ? { ca: fs.readFileSync(certificatePath, "utf8"), rejectUnauthorized: true }
+        : { rejectUnauthorized: false };
+    }
+    global.ntpPool = new Pool(config);
   }
   return global.ntpPool;
 }
