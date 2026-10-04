@@ -224,3 +224,25 @@ CREATE TABLE IF NOT EXISTS historical_imports (
   UNIQUE(company_id, sha256)
 );
 CREATE INDEX IF NOT EXISTS historical_imports_company_time_idx ON historical_imports(company_id, imported_at DESC);
+
+-- The annual template controls export formatting only.  It is deliberately
+-- separate from the one-time historical-data import so replacing a layout
+-- cannot alter start dates, leave records, or salary-adjustment history.
+CREATE TABLE IF NOT EXISTS annual_templates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL UNIQUE REFERENCES companies(id),
+  original_filename text NOT NULL,
+  storage_key text NOT NULL UNIQUE,
+  sha256 text NOT NULL,
+  uploaded_by uuid REFERENCES users(id),
+  uploaded_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS annual_templates_uploaded_idx ON annual_templates(company_id, uploaded_at DESC);
+
+-- Existing installations retain their current Annual file as the initial
+-- export template.  Subsequent template uploads use annual_templates only.
+INSERT INTO annual_templates(company_id, original_filename, storage_key, sha256, uploaded_by, uploaded_at)
+SELECT DISTINCT ON (company_id) company_id, original_filename, storage_key, sha256, imported_by, imported_at
+FROM historical_imports
+ORDER BY company_id, imported_at DESC
+ON CONFLICT (company_id) DO NOTHING;

@@ -82,6 +82,10 @@ export type Entry = {
     originalValue: string | null;
   }[];
 };
+export type AnnualTemplate = {
+  originalFilename: string;
+  uploadedAt: string;
+};
 type ApiData = {
   company: { id: string; name: string; address: string | null; tax_id: string | null; timezone: string } | null;
   user: { id: string; email: string; role: "admin" | "payroll" | "viewer" } | null;
@@ -93,6 +97,7 @@ type ApiData = {
   imports: ImportRecord[];
   itemTypes: ItemType[];
   importMappings: { id: string; header: string; code: string; label: string; kind: "income" | "deduction" }[];
+  annualTemplate: AnnualTemplate | null;
 };
 type DataContextValue = ApiData & {
   refresh: () => Promise<void>;
@@ -114,6 +119,7 @@ const emptyData: ApiData = {
   imports: [],
   itemTypes: [],
   importMappings: [],
+  annualTemplate: null,
 };
 
 export function DataProvider({

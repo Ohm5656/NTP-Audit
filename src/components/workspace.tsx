@@ -18,7 +18,6 @@ import {
   FileSpreadsheet,
   Filter,
   FolderUp,
-  History as HistoryIcon,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -52,6 +51,7 @@ import { toSatang } from "@/lib/money";
 import type { AppUser } from "@/lib/auth";
 import { EmployeeAnnualTable, MonthlyMonthFolders, MonthlyPayrollTable, MonthlyYearFolders } from "@/components/payroll-navigation";
 import { HistoricalImport } from "@/components/historical-import";
+import { AnnualTemplateSettings } from "@/components/annual-template-settings";
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
 
@@ -63,7 +63,6 @@ const mainNav: NavItem[] = [
   { href: "/salary", label: "ปรับเงินเดือน", icon: SlidersHorizontal },
 ];
 const systemNav: NavItem[] = [
-  { href: "/historical", label: "\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07", icon: HistoryIcon },
   { href: "/import", label: "นำเข้าข้อมูล", icon: FolderUp },
   { href: "/imports", label: "ประวัตินำเข้า", icon: FileClock },
   { href: "/settings", label: "ตั้งค่า", icon: Settings2 },
@@ -2306,6 +2305,14 @@ function SettingsPage() {
         >
           ข้อมูลบริษัท
         </button>
+        <button
+          role="tab"
+          aria-selected={tab === "annual"}
+          className={tab === "annual" ? "selected" : ""}
+          onClick={() => setTab("annual")}
+        >
+          Annual Excel
+        </button>
       </div>
       {tab === "mapping" && (
         <>
@@ -2361,6 +2368,7 @@ function SettingsPage() {
       )}
       {tab === "users" && (user?.role === "admin" ? <UserManagement /> : <Section title="ผู้ใช้งานและสิทธิ์"><p>บัญชี Admin เท่านั้นที่จัดการผู้ใช้ได้</p></Section>)}
       {tab === "company" && <CompanySettings />}
+      {tab === "annual" && <AnnualTemplateSettings />}
     </>
   );
 }

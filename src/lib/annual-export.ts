@@ -36,7 +36,7 @@ const leaveHeaders: Array<[string, AnnualExportInput["employees"][number]["leave
 
 export async function getAnnualExportInput(companyId: string, year: number): Promise<{ templatePath: string; input: AnnualExportInput }> {
   const [template, employees, entries, items, leaves, adjustments, types] = await Promise.all([
-    db().query<{ storage_key: string }>("SELECT storage_key FROM historical_imports WHERE company_id=$1 ORDER BY imported_at DESC LIMIT 1", [companyId]),
+    db().query<{ storage_key: string }>("SELECT storage_key FROM annual_templates WHERE company_id=$1 LIMIT 1", [companyId]),
     db().query<EmployeeRow>("SELECT e.id,e.code,e.full_name,e.employee_type,e.hire_date::text FROM employees e WHERE e.company_id=$1 AND EXISTS (SELECT 1 FROM active_payroll_entries p WHERE p.employee_id=e.id AND p.year=$2) ORDER BY CASE e.employee_type WHEN 'employee' THEN 0 ELSE 1 END,e.code", [companyId, year]),
     db().query<EntryRow>("SELECT id,employee_id,month,gross::text,deductions::text,net::text FROM active_payroll_entries WHERE company_id=$1 AND year=$2 ORDER BY employee_id,month", [companyId, year]),
     db().query<ItemRow>("SELECT pi.entry_id,t.code,pi.amount::text FROM payroll_items pi JOIN payroll_item_types t ON t.id=pi.item_type_id JOIN active_payroll_entries e ON e.id=pi.entry_id WHERE e.company_id=$1 AND e.year=$2", [companyId, year]),
