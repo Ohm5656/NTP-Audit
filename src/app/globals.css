@@ -2162,3 +2162,39 @@ thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important;
 .employee-annual-section .section-heading h2 { line-height: 1.4; }
 .annual-payroll-table thead tr:first-child th { padding-top: 11px; padding-bottom: 11px; }
 .annual-payroll-table thead tr:nth-child(2) th { padding-top: 10px; padding-bottom: 10px; }
+
+/* Keep report headings comfortably inside their cards and make table structure easy to scan. */
+.employee-annual-section .section-heading { min-height: 88px; padding: 17px 20px 15px; align-items: flex-start; }
+.employee-annual-section .section-heading .annual-year-links { padding-top: 2px; }
+.table-wrap,
+.table-scroll { --table-grid: #d8e4db; }
+.table-wrap th,
+.table-wrap td,
+.table-scroll th,
+.table-scroll td { border-bottom-color: var(--table-grid); }
+.table-wrap th:not(:last-child),
+.table-wrap td:not(:last-child),
+.table-scroll th:not(:last-child),
+.table-scroll td:not(:last-child) { border-right: 1px solid var(--table-grid); }
+.table-wrap tbody tr:last-child td,
+.table-wrap tbody tr:last-child th,
+.table-scroll tbody tr:last-child td,
+.table-scroll tbody tr:last-child th { border-bottom: 1px solid var(--table-grid); }
+.monthly-detail-table th,
+.monthly-detail-table td,
+.annual-payroll-table th,
+.annual-payroll-table td { border-right: 1px solid var(--table-grid); }
+.monthly-detail-table th:last-child,
+.monthly-detail-table td:last-child,
+.annual-payroll-table th:last-child,
+.annual-payroll-table td:last-child { border-right: 0; }
+.monthly-employee { box-shadow: 1px 0 0 var(--table-grid); }
+.history-table { border: 1px solid var(--table-grid); }
+.history-table th,
+.history-table td { border-right: 1px solid var(--table-grid); border-bottom-color: var(--table-grid); }
+.history-table th:last-child,
+.history-table td:last-child { border-right: 0; }
+.history-table tbody tr:last-child td { border-bottom: 0; }
+@media (max-width: 720px) {
+  .employee-annual-section .section-heading { min-height: auto; padding: 16px 14px; }
+}
