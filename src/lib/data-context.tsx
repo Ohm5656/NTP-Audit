@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -122,30 +123,79 @@ const emptyData: ApiData = {
   annualTemplate: null,
 };
 
+const dataCacheTtl = 2 * 60 * 1000;
+
+function readCachedData(cacheKey: string): ApiData | null {
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached) as { savedAt?: number; data?: ApiData };
+    if (!parsed.data || !parsed.savedAt || Date.now() - parsed.savedAt > dataCacheTtl) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function cacheData(cacheKey: string, data: ApiData) {
+  try {
+    sessionStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch {
+    // Browsers in private mode can reject session storage. Network loading still works.
+  }
+}
+
+function DataLoadingState() {
+  return (
+    <div className="app-loading app-loading-skeleton" aria-busy="true" aria-live="polite">
+      <div className="loading-skeleton loading-skeleton-title" />
+      <div className="loading-skeleton loading-skeleton-copy" />
+      <div className="loading-skeleton-grid">
+        <div className="loading-skeleton loading-skeleton-card" />
+        <div className="loading-skeleton loading-skeleton-card" />
+        <div className="loading-skeleton loading-skeleton-card" />
+      </div>
+      <span>Loading payroll data...</span>
+    </div>
+  );
+}
+
 export function DataProvider({
   year,
+  cacheKey,
   children,
 }: {
   year: number;
+  cacheKey: string;
   children: ReactNode;
 }) {
   const [data, setData] = useState<ApiData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const response = await fetch("/api/data", { cache: "no-store" });
     if (response.status === 403) {
       window.location.href = "/login";
       return;
     }
     if (!response.ok) throw new Error("อ่านข้อมูลจากฐานข้อมูลไม่สำเร็จ");
-    setData(await response.json());
-  };
+    const nextData = (await response.json()) as ApiData;
+    setData(nextData);
+    cacheData(cacheKey, nextData);
+    setError("");
+  }, [cacheKey]);
   useEffect(() => {
+    const cached = readCachedData(cacheKey);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+    }
     refresh()
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        if (!cached) setError(e.message);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [cacheKey, refresh]);
   const value = useMemo<DataContextValue>(() => {
     const byDbId = new Map(
       data.employees.map((employee) => [employee.dbId, employee]),
@@ -218,7 +268,7 @@ export function DataProvider({
       ).length,
     };
   }, [data, year]);
-  if (loading) return <div className="app-loading">กำลังอ่านข้อมูล...</div>;
+  if (loading) return <DataLoadingState />;
   if (error)
     return (
       <div className="app-loading error">

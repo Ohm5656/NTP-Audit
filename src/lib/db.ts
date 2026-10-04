@@ -13,8 +13,12 @@ export function db(): Pool {
     const usesSupabaseTransactionPooler = url.hostname.endsWith(".pooler.supabase.com") && url.port === "6543";
     const config: PoolConfig = {
       connectionString: process.env.DATABASE_URL,
-      max: usesSupabaseTransactionPooler ? 1 : 10,
+      // The data endpoint reads independent payroll datasets in parallel.  A
+      // small pool lets those reads share Supabase's transaction pooler rather
+      // than waiting behind one connection on every page load.
+      max: usesSupabaseTransactionPooler ? 4 : 10,
       idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
     };
     if (usesSupabaseTransactionPooler) {
       const certificatePath = process.env.SUPABASE_SSL_ROOT_CERT;
