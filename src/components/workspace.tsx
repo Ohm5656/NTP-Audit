@@ -1420,7 +1420,7 @@ function AnnualExportButton({ year }: { year: number }) {
 
   if (job?.status === "ready") return <a className="button button-primary" href={`/api/reports/annual/${job.id}/download`}><ArrowDownToLine size={17} />ดาวน์โหลด Annual Excel {year + 543}</a>;
   const busy = submitting || job?.status === "queued" || job?.status === "processing";
-  const label = busy ? "Annual Excel..." : `ดาวน์โหลด Annual Excel ${year + 543}`;
+  const label = busy ? "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2a\u0e23\u0e49\u0e32\u0e07 Annual Excel..." : `ดาวน์โหลด Annual Excel ${year + 543}`;
   return (
     <div className="annual-export-action">
       <button type="button" className="button button-primary" disabled={busy} onClick={() => void createExport()}>
