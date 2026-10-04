@@ -2216,3 +2216,26 @@ thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important;
   .template-settings-body { padding: 16px 14px; }
   .template-upload-form .button { width: 100%; justify-content: center; }
 }
+
+/* Monthly detail table: the source cells include a deduction subtotal, but the
+   web table presents its individual deductions and net pay.  Removing the
+   repeated subtotal keeps every visible body column under one header. */
+.monthly-detail-table tbody tr:not(.monthly-group-row) td:nth-last-child(2),
+.monthly-detail-table tfoot td:nth-last-child(2) { display: none; }
+.monthly-detail-table .numeric { min-width: 92px; }
+
+/* Give the Payroll title its own breathing room from the card border. */
+.section:has(.segmented) .section-heading { min-height: 70px; padding: 15px 22px 13px; align-items: flex-start; }
+.section:has(.segmented) .section-heading .section-subtle { display: block; margin: 5px 0 0; }
+
+/* The annual overview uses the available horizontal space better with taller
+   summary cards, so the figures and their context scan as one unit. */
+.coverage-card { padding: 25px 26px 24px; }
+.coverage-month { height: 62px; padding-top: 8px; padding-bottom: 6px; }
+.metric { min-height: 122px; padding: 20px 22px; }
+.metric-hint { margin-top: 6px; }
+@media (max-width: 720px) {
+  .section:has(.segmented) .section-heading { min-height: auto; padding: 15px 14px; }
+  .coverage-card { padding: 19px 16px; }
+  .metric { min-height: 108px; padding: 17px 16px; }
+}
