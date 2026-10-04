@@ -64,11 +64,8 @@ export async function importHistoricalAnnual({ companyId, userId, filename, buff
         const previousNote = `Annual historical import ${previous.id}`;
         await client.query("DELETE FROM leave_records WHERE company_id=$1 AND source_type='imported' AND note=$2", [companyId, previousNote]);
         await client.query("DELETE FROM salary_adjustments WHERE company_id=$1 AND source_type='imported' AND note=$2", [companyId, previousNote]);
-        const templateUsesPreviousFile = await client.query("SELECT 1 FROM annual_templates WHERE storage_key=$1 LIMIT 1", [previous.storage_key]);
         await client.query("DELETE FROM historical_imports WHERE id=$1", [previous.id]);
-        // The first separated-template migration may reference this original
-        // historical upload. Keep its private file while it remains a template.
-        if (!templateUsesPreviousFile.rowCount) replacedStorageKey = previous.storage_key;
+        replacedStorageKey = previous.storage_key;
       }
 
       const history = await client.query<{ id: string }>(

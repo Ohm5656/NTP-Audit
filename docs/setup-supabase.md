@@ -36,8 +36,8 @@ The production `DATABASE_URL` will later be set to the same value as
 it with `NEXT_PUBLIC_`, and do not add it to Vercel browser environment values.
 
 The shared Transaction Pooler gives IPv4 access for development machines and
-serverless hosts. The app uses one database connection per warm server instance
-for this mode. For certificate verification, download the Supabase root
+serverless hosts. The app uses a small pool of up to four database connections
+per warm server instance for this mode. For certificate verification, download the Supabase root
 certificate from **Database Settings → SSL Configuration** and set
 `SUPABASE_SSL_ROOT_CERT` to its local path. Until that path is set, the app
 still encrypts the connection but accepts the pooler's certificate without
@@ -55,8 +55,7 @@ npm run db:migrate:supabase -- --confirm
 
 After it succeeds, set `DATABASE_URL` to the Supabase pooler connection string
 and restart `npm run dev`. Login sessions do not transfer, so sign in once with
-the existing Admin account. Test a monthly original download and an Annual
-export before deploying.
+the existing Admin account. Test a monthly original download before deploying.
 
 ## 4. Production environment
 

@@ -65,7 +65,7 @@
 1. โครงโปรเจกต์ ระบบภาพและหน้าจอ 17 เส้นทางด้วยข้อมูลสมมติ ตรวจ build แล้ว commit/push
 2. PostgreSQL, การยืนยันตัวตน, บทบาท, audit และ persistence ตรวจ migration แล้ว commit/push
 3. Excel import pipeline: ตรวจชีต, header mapping, พนักงาน, validation, transaction/version ตรวจด้วยไฟล์ตัวอย่างในเครื่องโดยไม่ commit ไฟล์ แล้ว commit/push
-4. รายงานรายเดือน/ปี, วันลา, ปรับเงินเดือน, export, PWA และการทดสอบ end-to-end แล้ว commit/push
+4. รายงานรายเดือน/ปี, วันลา, ปรับเงินเดือน, ดาวน์โหลดไฟล์ Payroll ต้นฉบับ, PWA และการทดสอบ end-to-end แล้ว commit/push
 
 ## เกณฑ์ตรวจ
 

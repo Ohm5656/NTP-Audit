@@ -2161,7 +2161,6 @@ thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important;
 .profile-title { min-width: 0; flex-wrap: wrap; }
 .profile-title h1 { overflow-wrap: anywhere; }
 .profile-header p { overflow-wrap: anywhere; }
-.annual-report-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 720px) {
   .profile-header { gap: 10px; margin-bottom: 16px; }
   .profile-title h1 { font-size: 20px; line-height: 1.25; }
@@ -2170,10 +2169,7 @@ thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important;
   .detail-list div { align-items: flex-start; }
   .detail-list strong { max-width: 58%; overflow-wrap: anywhere; }
   .section-heading { align-items: flex-start; flex-wrap: wrap; padding: 12px 14px; }
-  .annual-report-actions { width: 100%; justify-content: space-between; }
-  .annual-report-actions .button { min-height: 36px; }
 }
-
 /* Annual employee report: align header bands to the rendered data columns. */
 .employee-annual-section .section-heading { min-height: 70px; }
 .employee-annual-section .section-heading h2 { line-height: 1.4; }
@@ -2216,24 +2212,6 @@ thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important;
   .employee-annual-section .section-heading { min-height: auto; padding: 16px 14px; }
 }
 
-/* Annual export format and historical employee data are managed separately. */
-.template-settings-stack { display: grid; gap: 18px; max-width: 760px; }
-.template-settings-section { overflow: hidden; }
-.template-settings-body { display: grid; gap: 15px; padding: 20px; }
-.template-current { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.template-current > div:last-child { display: grid; gap: 3px; min-width: 0; }
-.template-current strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.template-current span { color: var(--muted); font-size: 13px; line-height: 1.45; }
-.template-file-icon { display: grid; flex: 0 0 auto; place-items: center; width: 44px; height: 44px; border: 1px solid #cfe2d4; border-radius: 9px; color: var(--green); background: #eff8f1; }
-.template-upload-form { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.template-upload-form .file-picker { flex: 1 1 360px; }
-.history-settings-body .button { justify-self: start; }
-.access-note { margin: 0; color: var(--muted); font-size: 13px; }
-@media (max-width: 720px) {
-  .template-settings-body { padding: 16px 14px; }
-  .template-upload-form .button { width: 100%; justify-content: center; }
-}
-
 /* Monthly detail table: the source cells include a deduction subtotal, but the
    web table presents its individual deductions and net pay.  Removing the
    repeated subtotal keeps every visible body column under one header. */
@@ -2257,19 +2235,16 @@ thead .monthly-employee { z-index: 5 !important; background: #e9f3eb !important;
   .metric { min-height: 108px; padding: 17px 16px; }
 }
 
-.annual-export-action {
+.annual-report-controls {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-.annual-export-action .form-error {
-  max-width: 280px;
-  text-align: right;
-}
+.annual-column-mode button { padding: 6px 10px; }
 @media (max-width: 600px) {
-  .annual-export-action { align-items: flex-start; margin-top: 12px; }
-  .annual-export-action .form-error { text-align: left; }
+  .annual-report-controls { align-items: flex-start; justify-content: flex-start; }
 }
 
 .app-loading {

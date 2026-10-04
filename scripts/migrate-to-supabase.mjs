@@ -44,14 +44,13 @@ const tables = [
   "salary_adjustments",
   "import_errors",
   "historical_imports",
-  "annual_templates",
   "audit_logs",
 ];
 
 const truncateTables = [
   "audit_logs", "import_errors", "payroll_items", "payroll_entries", "imports",
   "import_uploads", "import_mappings", "payroll_periods", "payroll_item_types",
-  "leave_records", "salary_adjustments", "historical_imports", "annual_templates",
+  "leave_records", "salary_adjustments", "historical_imports",
   "sessions", "employees", "users", "companies",
 ];
 const jsonColumns = new Set(["metadata", "warnings", "before_data", "after_data"]);
@@ -82,8 +81,6 @@ async function listStorageKeys() {
     SELECT storage_key FROM imports
     UNION
     SELECT storage_key FROM historical_imports
-    UNION
-    SELECT storage_key FROM annual_templates
   `);
   return result.rows.map((row) => row.storage_key);
 }

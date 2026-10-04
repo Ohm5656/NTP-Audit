@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowDownToLine,
   ArrowLeft,
   ArrowRight,
   Bell,
@@ -51,7 +50,6 @@ import { toSatang } from "@/lib/money";
 import type { AppUser } from "@/lib/auth";
 import { EmployeeAnnualTable, MonthlyMonthFolders, MonthlyPayrollTable, MonthlyYearFolders } from "@/components/payroll-navigation";
 import { HistoricalImport } from "@/components/historical-import";
-import { AnnualTemplateSettings } from "@/components/annual-template-settings";
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
 
@@ -275,8 +273,7 @@ export default function Workspace({ user }: { user?: AppUser }) {
   else if (pathname === "/import/complete") content = <LiveImportComplete />;
   else if (pathname === "/reports/employee")
     content = <EmployeesPage search={search} setSearch={setSearch} />;
-  else if (pathname === "/reports/company")
-    content = <CompanyReport year={year} setYear={setYear} />;
+  else if (pathname === "/reports/company") content = <Dashboard year={year} setYear={setYear} />;
   else if (pathname === "/employees")
     content = <EmployeesPage search={search} setSearch={setSearch} />;
   else if (pathname.startsWith("/employees/"))
@@ -547,7 +544,7 @@ function Dashboard({
                     p.activeImportId,
                 )
                   ? `/monthly/${year}/${String(index + 1).padStart(2, "0")}`
-                  : user?.role === "viewer" ? "/reports/company" : "/import"
+                  : user?.role === "viewer" ? "/" : "/import"
               }
               className={`coverage-month ${periods.some((p) => p.year === Number(year) - 543 && p.month === index + 1 && p.activeImportId) ? "completed" : "missing"}`}
               key={name}
@@ -831,12 +828,6 @@ function MonthDetail({
       </div>
       <Section
         title="รายการพนักงาน"
-        action={
-          <a className="button button-secondary" href={`/api/reports/export?kind=monthly&year=${selectedYear - 543}&month=${selectedMonth}`}>
-            <ArrowDownToLine size={16} />
-            ส่งออก Excel
-          </a>
-        }
       >
         <div className="toolbar toolbar-inside">
           <div className="search-box">
@@ -955,482 +946,6 @@ function MonthDetail({
   );
 }
 
-function AnnualEmployeeReport({
-  year,
-  setYear,
-}: {
-  year: string;
-  setYear: (value: string) => void;
-}) {
-  const { employees, entries, itemTypes, payrollForMonth, leaveRecords, salaryAdjustments } =
-    usePayrollData();
-  const [employeeId, setEmployeeId] = useState(employees[0]?.id || "");
-  const [detailed, setDetailed] = useState(true);
-  const [showEmpty, setShowEmpty] = useState(false);
-  const employee =
-    employees.find((item) => item.id === employeeId) || employees[0];
-  const monthly = Array.from({ length: 12 }, (_, index) =>
-    payrollForMonth(index + 1).find((row) => row.employee.id === employeeId),
-  );
-  const monthlyEntries = Array.from({ length: 12 }, (_, index) =>
-    entries.find((entry) => entry.year === Number(year) - 543 && entry.month === index + 1 && entry.employeeDbId === employee?.dbId),
-  );
-  const incomeItems = itemTypes.filter((item) => item.kind === "income");
-  const deductionItems = itemTypes.filter((item) => item.kind === "deduction");
-  const itemRow = (label: string, code: string) => {
-    const values = monthlyEntries.map((entry) => entry
-      ? entry.items.filter((item) => item.code === code).reduce((total, item) => total + item.amount, 0)
-      : null);
-    if (!showEmpty && values.every((value) => value === null || value === 0)) return null;
-    return <tr key={code}>
-      <th scope="row">{label}</th>
-      {values.map((value, index) => <MoneyCell key={index} value={value} />)}
-      <td className="numeric total-column">{money(values.reduce<number>((total, value) => total + (value || 0), 0))}</td>
-    </tr>;
-  };
-  const reportRow = (label: string, key: keyof PayrollRow, strong = false) => {
-    const values = monthly.map((row) => (row ? (row[key] as number) : null));
-    if (!showEmpty && !strong && values.every((value) => !value)) return null;
-    return (
-      <tr key={label} className={strong ? "report-total" : ""}>
-        <th scope="row">{label}</th>
-        {values.map((value, index) => (
-          <MoneyCell key={index} value={value} />
-        ))}
-        <td className="numeric total-column">
-          {money(
-            values.reduce<number>((total, value) => total + (value || 0), 0),
-          )}
-        </td>
-      </tr>
-    );
-  };
-  if (!employee)
-    return (
-      <>
-        <PageHeading
-          title="รายงานรายปีรายพนักงาน"
-          description="ยังไม่มีพนักงานในระบบ"
-          action={<SelectYear year={year} onChange={setYear} />}
-        />
-        <div className="guide-card">
-          <h2>เริ่มจากข้อมูลรายเดือน</h2>
-          <p>
-            นำเข้า Excel รายเดือนเพื่อสร้างข้อมูลพนักงานและรายงานรายปีอัตโนมัติ
-          </p>
-          <Link href="/import" className="button button-primary">
-            นำเข้า Excel
-          </Link>
-        </div>
-      </>
-    );
-  return (
-    <>
-      <PageHeading
-        title="รายงานรายปีรายพนักงาน"
-        description="สรุปยอดจากข้อมูลรายเดือนที่นำเข้าแล้ว"
-        action={
-          <>
-            <SelectYear year={year} onChange={setYear} />
-            <a className="button button-secondary" href={`/api/reports/export?kind=employee&year=${Number(year) - 543}&employee=${encodeURIComponent(employeeId)}`}>
-              <ArrowDownToLine size={16} />
-              ส่งออก Excel
-            </a>
-          </>
-        }
-      />
-      <div className="report-controls">
-        <label className="control-field">
-          <span>พนักงาน</span>
-          <select
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-          >
-            {employees.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.id} · {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="segmented">
-          <button
-            className={!detailed ? "selected" : ""}
-            onClick={() => setDetailed(false)}
-          >
-            สรุป
-          </button>
-          <button
-            className={detailed ? "selected" : ""}
-            onClick={() => setDetailed(true)}
-          >
-            รายละเอียด
-          </button>
-        </div>
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={showEmpty}
-            onChange={(e) => setShowEmpty(e.target.checked)}
-          />
-          แสดงรายการที่ไม่มียอด
-        </label>
-      </div>
-      <div className="employee-report-head">
-        <div className="profile-avatar">{employee.name.slice(0, 1)}</div>
-        <div>
-          <h2>{employee.name}</h2>
-          <p>
-            {employee.id} · {employee.position} · เริ่มงาน{" "}
-            {thaiDate(employee.startDate)}
-          </p>
-        </div>
-        <Status>มีข้อมูล {monthly.filter(Boolean).length} / 12 เดือน</Status>
-      </div>
-      <div className="report-key">
-        <span>
-          <i className="key-dot filled" />
-          มีข้อมูล
-        </span>
-        <span>
-          <i className="key-dot empty" />
-          ยังไม่มีข้อมูล
-        </span>
-        <span>หน่วย: บาท</span>
-      </div>
-      <div className="table-scroll annual-scroll">
-        <table className="annual-table">
-          <thead>
-            <tr>
-              <th>รายการ</th>
-              {shortMonths.map((month) => (
-                <th className="numeric" key={month}>
-                  {month}
-                </th>
-              ))}
-              <th className="numeric total-column">รวมปี</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="report-section-row">
-              <th colSpan={14}>รายได้</th>
-            </tr>
-            {detailed && incomeItems.map((item) => itemRow(item.label, item.code))}
-            {reportRow("รวมรายได้", "gross", true)}
-            <tr className="report-section-row">
-              <th colSpan={14}>รายการหัก</th>
-            </tr>
-            {detailed && deductionItems.map((item) => itemRow(item.label, item.code))}
-            {reportRow("รวมรายการหัก", "deductions", true)}
-            {reportRow("เงินได้สุทธิ", "net", true)}
-          </tbody>
-        </table>
-      </div>
-      <div className="two-column report-lower">
-        <Section
-          title="สถิติการลา"
-          action={
-            <Link href="/leave" className="text-link">
-              ดูรายการทั้งหมด <ArrowRight size={15} />
-            </Link>
-          }
-        >
-          <div className="leave-stats">
-            {["ลากิจ", "พักร้อน", "ลาป่วย", "ลาไม่รับค่าจ้าง", "ขาดงาน"].map((type) => <div key={type}>
-              <strong>{leaveRecords.filter((item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)) && item.type === type).reduce((total, item) => total + item.days, 0)}</strong>
-              <span>{type}</span>
-            </div>)}
-          </div>
-          <div className="compact-list">
-            {leaveRecords
-              .filter((item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)))
-              .map((item) => (
-                <div key={item.id}>
-                  <span>
-                    {thaiDate(item.date)} · {item.type}
-                  </span>
-                  <strong>{item.days} วัน</strong>
-                </div>
-              ))}
-            {!leaveRecords.some((item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543))) && (
-              <p className="empty-inline">ยังไม่มีบันทึกการลา</p>
-            )}
-          </div>
-        </Section>
-        <Section
-          title="ประวัติปรับเงินเดือน"
-          action={
-            <Link href="/salary" className="text-link">
-              ดูรายการทั้งหมด <ArrowRight size={15} />
-            </Link>
-          }
-        >
-          <div className="compact-list">
-            {salaryAdjustments
-              .filter((item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)))
-              .map((item) => (
-                <div key={item.id}>
-                  <span>
-                    {thaiDate(item.date)} · {item.reason}
-                  </span>
-                  <strong>฿{money(item.oldSalary)} → ฿{money(item.newSalary)} <small>({item.oldSalary ? (((item.newSalary - item.oldSalary) / item.oldSalary) * 100).toFixed(1) : "—"}%)</small></strong>
-                </div>
-              ))}
-            {!salaryAdjustments.some(
-              (item) => item.employeeId === employeeId && item.date.startsWith(String(Number(year) - 543)),
-            ) && <p className="empty-inline">ยังไม่มีประวัติปรับเงินเดือน</p>}
-          </div>
-        </Section>
-      </div>
-    </>
-  );
-}
-
-function CompanyReport({
-  year,
-  setYear,
-}: {
-  year: string;
-  setYear: (value: string) => void;
-}) {
-  const { payrollForMonth, annualTotal, coverage, entries } = usePayrollData();
-  const [showExtra, setShowExtra] = useState(false);
-  const imported = coverage > 0;
-  const currentMonths = new Set(entries.filter((entry) => entry.year === Number(year) - 543).map((entry) => entry.month));
-  const previousYearEntries = entries.filter((entry) => entry.year === Number(year) - 544);
-  const previousNet = previousYearEntries.reduce((total, entry) => total + entry.net, 0);
-  const priorSameMonths = previousYearEntries.filter((entry) => currentMonths.has(entry.month));
-  const comparablePreviousNet = priorSameMonths.reduce((total, entry) => total + entry.net, 0);
-  const comparableCurrentNet = entries.filter((entry) => entry.year === Number(year) - 543 && previousYearEntries.some((prior) => prior.month === entry.month)).reduce((total, entry) => total + entry.net, 0);
-  const totals = Array.from({ length: 12 }, (_, index) =>
-    payrollForMonth(index + 1),
-  );
-  return (
-    <>
-      <PageHeading
-        title="รายงานสรุปทั้งบริษัท"
-        description="เปรียบเทียบค่าใช้จ่ายพนักงานและกรรมการรายเดือน"
-        action={
-          <>
-            <SelectYear year={year} onChange={setYear} />
-            <a className="button button-secondary" href={`/api/reports/export?kind=company&year=${Number(year) - 543}`}>
-              <ArrowDownToLine size={16} />
-              ส่งออก Excel
-            </a>
-          </>
-        }
-      />
-      <div className="report-summary-line">
-        <div>
-          <span>รายได้รวมทั้งปีถึงปัจจุบัน</span>
-          <strong>{imported ? `฿${money(annualTotal("gross"))}` : "—"}</strong>
-        </div>
-        <div>
-          <span>เงินสุทธิที่จ่าย</span>
-          <strong>{imported ? `฿${money(annualTotal("net"))}` : "—"}</strong>
-        </div>
-        <div>
-          <span>ข้อมูลครบ</span>
-          <strong>{coverage} / 12 เดือน</strong>
-        </div>
-      </div>
-      <div className="year-comparison">
-        <div><span>ปีก่อน {Number(year) - 1}</span><strong>{previousYearEntries.length ? `฿${money(previousNet)}` : "—"}</strong></div>
-        <div><span>เทียบเดือนที่มีข้อมูลทั้งสองปี</span><strong>{comparablePreviousNet !== 0 ? `${((comparableCurrentNet - comparablePreviousNet) / comparablePreviousNet * 100).toFixed(1)}%` : "—"}</strong></div>
-      </div>
-      <Section
-        title="สรุปรายเดือน"
-        action={
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={showExtra}
-              onChange={(e) => setShowExtra(e.target.checked)}
-            />
-            แสดงคอลัมน์เพิ่มเติม
-          </label>
-        }
-      >
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>เดือน</th>
-                <th className="numeric">เงินเดือนพนักงาน</th>
-                <th className="numeric">เงินเดือนกรรมการ</th>
-                <th className="numeric">โบนัสพนักงาน</th>
-                <th className="numeric">โบนัสกรรมการ</th>
-                <th className="numeric">OT</th>
-                <th className="numeric">รายได้รวม</th>
-                {showExtra && (
-                  <>
-                    <th className="numeric">ภาษี</th>
-                    <th className="numeric">ประกันสังคม</th>
-                    <th className="numeric">รายการหัก</th>
-                  </>
-                )}
-                <th className="numeric">เงินสุทธิ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {months.map((name, index) => {
-                const rows = imported ? totals[index] : [];
-                const hasData = rows.length > 0;
-                return (
-                  <tr key={name}>
-                    <td>
-                      <Link
-                        href={
-                          hasData
-                            ? `/monthly/${year}/${String(index + 1).padStart(2, "0")}`
-                            : "/import"
-                        }
-                        className="table-primary-link"
-                      >
-                        {name}
-                      </Link>
-                    </td>
-                    <MoneyCell
-                      value={
-                        hasData
-                          ? rows
-                              .filter((row) => row.employee.type === "employee")
-                              .reduce((a, b) => a + b.salary, 0)
-                          : null
-                      }
-                    />
-                    <MoneyCell
-                      value={
-                        hasData
-                          ? rows
-                              .filter((row) => row.employee.type === "director")
-                              .reduce((a, b) => a + b.salary, 0)
-                          : null
-                      }
-                    />
-                    <MoneyCell value={hasData ? rows.filter((row) => row.employee.type === "employee").reduce((a, b) => a + b.bonus, 0) : null} />
-                    <MoneyCell value={hasData ? rows.filter((row) => row.employee.type === "director").reduce((a, b) => a + b.bonus, 0) : null} />
-                    <MoneyCell value={hasData ? sum(rows, "ot") : null} />
-                    <MoneyCell value={hasData ? sum(rows, "gross") : null} />
-                    {showExtra && (
-                      <>
-                        <MoneyCell value={hasData ? sum(rows, "tax") : null} />
-                        <MoneyCell
-                          value={hasData ? sum(rows, "socialSecurity") : null}
-                        />
-                        <MoneyCell
-                          value={hasData ? sum(rows, "deductions") : null}
-                        />
-                      </>
-                    )}
-                    <MoneyCell value={hasData ? sum(rows, "net") : null} />
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>รวมปี</td>
-                <MoneyCell
-                  value={
-                    imported
-                      ? totals
-                          .flat()
-                          .filter((row) => row.employee.type === "employee")
-                          .reduce((a, b) => a + b.salary, 0)
-                      : null
-                  }
-                />
-                <MoneyCell
-                  value={
-                    imported
-                      ? totals
-                          .flat()
-                          .filter((row) => row.employee.type === "director")
-                          .reduce((a, b) => a + b.salary, 0)
-                      : null
-                  }
-                />
-                <MoneyCell value={imported ? totals.flat().filter((row) => row.employee.type === "employee").reduce((a, b) => a + b.bonus, 0) : null} />
-                <MoneyCell value={imported ? totals.flat().filter((row) => row.employee.type === "director").reduce((a, b) => a + b.bonus, 0) : null} />
-                <MoneyCell value={imported ? annualTotal("ot") : null} />
-                <MoneyCell value={imported ? annualTotal("gross") : null} />
-                {showExtra && (
-                  <>
-                    <MoneyCell value={imported ? annualTotal("tax") : null} />
-                    <MoneyCell
-                      value={imported ? annualTotal("socialSecurity") : null}
-                    />
-                    <MoneyCell
-                      value={imported ? annualTotal("deductions") : null}
-                    />
-                  </>
-                )}
-                <MoneyCell value={imported ? annualTotal("net") : null} />
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </Section>
-      <div className="related-link">
-        <Link href="/employees">
-          เปิดรายงานรายพนักงาน <ArrowRight size={16} />
-        </Link>
-      </div>
-    </>
-  );
-}
-
-
-type AnnualExportStatus = "queued" | "processing" | "ready" | "failed";
-type AnnualExportJobView = { id: string; status: AnnualExportStatus; errorMessage?: string | null };
-
-function AnnualExportButton({ year }: { year: number }) {
-  const [job, setJob] = useState<AnnualExportJobView | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!job || (job.status !== "queued" && job.status !== "processing")) return;
-    let cancelled = false;
-    const refreshJob = async () => {
-      try {
-        const response = await fetch(`/api/reports/annual/${job.id}`, { cache: "no-store" });
-        const payload = await response.json().catch(() => null);
-        if (!cancelled && response.ok && payload) setJob({ id: payload.id, status: payload.status, errorMessage: payload.errorMessage });
-      } catch {
-        // The next interval retries while the current progress remains visible.
-      }
-    };
-    void refreshJob();
-    const timer = window.setInterval(() => void refreshJob(), 2000);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, [job]);
-
-  const createExport = async () => {
-    setSubmitting(true);
-    try {
-      const payload = await postJson("/api/reports/annual", { year });
-      setJob({ id: payload.id, status: payload.status, errorMessage: payload.errorMessage });
-    } catch (error) {
-      setJob({ id: "", status: "failed", errorMessage: error instanceof Error ? error.message : "บันทึกข้อมูลไม่สำเร็จ" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (job?.status === "ready") return <a className="button button-primary" href={`/api/reports/annual/${job.id}/download`}><ArrowDownToLine size={17} />ดาวน์โหลด Annual Excel {year + 543}</a>;
-  const busy = submitting || job?.status === "queued" || job?.status === "processing";
-  const label = busy ? "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2a\u0e23\u0e49\u0e32\u0e07 Annual Excel..." : `ดาวน์โหลด Annual Excel ${year + 543}`;
-  return (
-    <div className="annual-export-action">
-      <button type="button" className="button button-primary" disabled={busy} onClick={() => void createExport()}>
-        <ArrowDownToLine size={17} />{label}
-      </button>
-      {job?.status === "failed" && job.errorMessage && <span className="form-error">{job.errorMessage}</span>}
-    </div>
-  );
-}
-
 function EmployeesPage({
   search,
   setSearch,
@@ -1442,7 +957,6 @@ function EmployeesPage({
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState("");
-  const latestAnnualYear = Array.from(new Set(entries.map((entry) => entry.year))).sort((a, b) => b - a)[0];
   const filtered = employees.filter(
     (employee) =>
       (filter === "all" || employee.type === filter) &&
@@ -1455,7 +969,6 @@ function EmployeesPage({
       <PageHeading
         title="พนักงาน"
         description="ข้อมูลบุคลากรและประวัติเงินเดือน"
-        action={latestAnnualYear ? <AnnualExportButton year={latestAnnualYear} /> : null}
       />
       <div className="toolbar">
         <div className="search-box">
@@ -2362,15 +1875,7 @@ function SettingsPage() {
         >
           ข้อมูลบริษัท
         </button>
-        <button
-          role="tab"
-          aria-selected={tab === "annual"}
-          className={tab === "annual" ? "selected" : ""}
-          onClick={() => setTab("annual")}
-        >
-          Annual Excel
-        </button>
-      </div>
+              </div>
       {tab === "mapping" && (
         <>
           <Section title="รายการและคำเรียกจาก Excel">
@@ -2425,7 +1930,6 @@ function SettingsPage() {
       )}
       {tab === "users" && (user?.role === "admin" ? <UserManagement /> : <Section title="ผู้ใช้งานและสิทธิ์"><p>บัญชี Admin เท่านั้นที่จัดการผู้ใช้ได้</p></Section>)}
       {tab === "company" && <CompanySettings />}
-      {tab === "annual" && <AnnualTemplateSettings />}
     </>
   );
 }
