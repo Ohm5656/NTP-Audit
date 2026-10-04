@@ -601,20 +601,27 @@ function Dashboard({
           role="img"
           aria-label="แผนภูมิเงินจ่ายสุทธิ 12 เดือน"
         >
-          {shortMonths.map((label, i) => (
-            <div key={label} className="bar-chart-column">
+          {shortMonths.map((label, i) => {
+            const monthRows = payrollForMonth(i + 1);
+            const net = sum(monthRows, "net");
+            return <div key={label} className="bar-chart-column">
               <div className="bar-chart-track">
-                {payrollForMonth(i + 1).length > 0 && (
+                {monthRows.length > 0 && (
                   <div
+                    className="bar-chart-bar"
+                    tabIndex={0}
+                    aria-label={`${label}: ยอดจ่ายสุทธิ ${money(net)} บาท`}
                     style={{
-                      height: `${Math.max(10, annualTotal("net") ? (sum(payrollForMonth(i + 1), "net") / (annualTotal("net") / Math.max(coverage, 1))) * 72 : 10)}%`,
+                      height: `${Math.max(10, annualTotal("net") ? (net / (annualTotal("net") / Math.max(coverage, 1))) * 72 : 10)}%`,
                     }}
-                  />
+                  >
+                    <span className="bar-chart-tooltip">ยอดจ่ายสุทธิ ฿{money(net)}</span>
+                  </div>
                 )}
               </div>
               <span>{label}</span>
-            </div>
-          ))}
+            </div>;
+          })}
         </div>}
       </Section>
     </>
