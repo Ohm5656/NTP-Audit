@@ -298,7 +298,7 @@ export default function Workspace({ user }: { user?: AppUser }) {
     content = <PageHeading title="ไม่มีสิทธิ์แก้ไขข้อมูล" description="บัญชีผู้ดูรายงานใช้สำหรับดูภาพรวมและรายงาน" action={<Link className="button button-primary" href="/">กลับภาพรวม</Link>} />;
 
   return (
-    <DataProvider year={Number(year) - 543} cacheKey={`ntp-audit:data:v2:${user?.id || "anonymous"}`}>
+    <DataProvider year={Number(year) - 543} cacheKey={`ntp-audit:data:v3:${user?.id || "anonymous"}`}>
       <ImportWizardProvider>
         <div className="app-shell">
           <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
