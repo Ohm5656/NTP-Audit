@@ -682,8 +682,6 @@ export function ImportValidation() {
                   <td>
                     {row.issues.some((issue) => issue.severity === "error") ? (
                       <span className="status status-red">ผิดพลาด</span>
-                    ) : row.issues.length ? (
-                      <span className="status status-amber">ตรวจสอบ</span>
                     ) : (
                       <span className="status status-green">ตรงกัน</span>
                     )}

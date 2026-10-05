@@ -69,6 +69,7 @@ type Column = {
   header: string;
   kind: "income" | "deduction" | "gross" | "net";
   code: string | null;
+  salaryCandidate?: boolean;
 };
 
 export function normalizeHeader(value: string): string {
@@ -231,7 +232,6 @@ function columnsForSheet(
   let nameColumn = 2;
   let codeColumn: number | null = null;
   let nationalIdColumn: number | null = null;
-  let salaryChosen = false;
   for (let col = 1; col <= Math.min(sheet.columnCount, 100); col++) {
     const group = cellText(sheet.getRow(headerRow - 2).getCell(col));
     const sub = cellText(sheet.getRow(headerRow - 1).getCell(col));
@@ -277,15 +277,16 @@ function columnsForSheet(
       group.includes("ค่าจ้าง") &&
       (leaf.includes("เดือนละ") || leaf.includes("ค่าจ้าง"))
     ) {
-      if (!salaryChosen) {
-        columns.push({
-          index: col,
-          header: "ค่าจ้าง",
-          kind: "income",
-          code: "salary",
-        });
-        salaryChosen = true;
-      }
+      // Some payroll workbooks provide two wage columns: monthly staff use
+      // the first one, while daily staff use the second.  Keep both as
+      // candidates and select the populated value for each individual row.
+      columns.push({
+        index: col,
+        header: "ค่าจ้าง",
+        kind: "income",
+        code: "salary",
+        salaryCandidate: true,
+      });
       continue;
     }
     if (group.includes("ค่าล่วงเวลา") && leaf.includes("รวมเงิน")) {
@@ -400,7 +401,16 @@ export async function parseWorkbook(
     const items: SourceItem[] = [];
     let excelGross: number | null = null;
     let excelNet: number | null = null;
+    const salaryValues = columns
+      .filter((column) => column.salaryCandidate)
+      .map((column) => ({ column, value: numericCell(row.getCell(column.index)) }));
+    const selectedSalaryColumn =
+      salaryValues.find(({ value }) => value.amount !== null && value.amount !== 0)
+        ?.column.index ??
+      salaryValues.find(({ value }) => value.amount !== null)?.column.index ??
+      null;
     for (const col of columns) {
+      if (col.salaryCandidate && col.index !== selectedSalaryColumn) continue;
       const cell = row.getCell(col.index);
       const value = numericCell(cell);
       if (value.unreliable)
