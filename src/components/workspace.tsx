@@ -187,17 +187,37 @@ function Metric({
   value,
   hint,
   primary = false,
+  details,
+  detailsLabel = "ดูรายละเอียด",
 }: {
   label: string;
   value: string;
   hint?: string;
   primary?: boolean;
+  details?: { label: string; value: number }[];
+  detailsLabel?: string;
 }) {
   return (
     <div className={`metric ${primary ? "metric-primary" : ""}`}>
       <div className="metric-label">{label}</div>
       <div className="metric-value">{value}</div>
       {hint && <div className="metric-hint">{hint}</div>}
+      {details && details.length > 0 && (
+        <details className="metric-details">
+          <summary>
+            <span>{detailsLabel}</span>
+            <ChevronDown size={14} />
+          </summary>
+          <div className="metric-details-list">
+            {details.map((item) => (
+              <div key={item.label}>
+                <span>{item.label}</span>
+                <strong>฿{money(item.value)}</strong>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -496,8 +516,51 @@ function Dashboard({
   year: string;
   setYear: (value: string) => void;
 }) {
-  const { payrollForMonth, annualTotal, coverage, employees, periods, user } =
+  const { payrollForMonth, annualTotal, coverage, employees, periods, entries, itemTypes, user } =
     usePayrollData();
+  const selectedYear = Number(year) - 543;
+  const yearEntries = entries.filter((entry) => entry.year === selectedYear);
+  const totalForItem = (code: string) =>
+    yearEntries.reduce(
+      (sum, entry) =>
+        sum +
+        entry.items
+          .filter((item) => item.code === code)
+          .reduce((itemSum, item) => itemSum + item.amount, 0),
+      0,
+    );
+  const labelForItem = (code: string, fallback: string) =>
+    itemTypes.find((item) => item.code === code)?.label || fallback;
+  const overtimeDetails = [
+    { code: "ot_15", fallback: "OT 1.5" },
+    { code: "holiday_work", fallback: "ทำงานวันหยุด" },
+    { code: "ot_3", fallback: "OT วันหยุด x3" },
+    { code: "ot_2", fallback: "OT 2" },
+  ]
+    .map((item) => ({
+      label: labelForItem(item.code, item.fallback),
+      value: totalForItem(item.code),
+    }))
+    .filter((item) => item.value > 0);
+  const deductionOrder = [
+    "housing_utilities",
+    "social_security",
+    "advance",
+    "lost_tools",
+    "loan",
+    "tax",
+  ];
+  const deductionDetails = itemTypes
+    .filter((item) => item.kind === "deduction" && item.active)
+    .map((item) => ({ label: item.label, value: totalForItem(item.code), code: item.code }))
+    .filter((item) => item.value > 0)
+    .sort(
+      (a, b) =>
+        (deductionOrder.indexOf(a.code) + 1 || 999) -
+          (deductionOrder.indexOf(b.code) + 1 || 999) ||
+        a.label.localeCompare(b.label, "th"),
+    )
+    .map(({ label, value }) => ({ label, value }));
   const latest = periods
     .filter(
       (period) => period.year === Number(year) - 543 && period.activeImportId,
@@ -581,11 +644,15 @@ function Dashboard({
           label="เงินสุทธิที่จ่าย"
           value={coverage ? `฿${money(annualTotal("net"), 0)}` : "—"}
           hint="หลังหักรายการทั้งหมด"
+          details={deductionDetails}
+          detailsLabel="ดูรายละเอียดรายการหัก"
         />
         <Metric
           label="ค่าล่วงเวลา"
           value={coverage ? `฿${money(annualTotal("ot"), 0)}` : "—"}
           hint={`สะสม ${coverage} เดือน`}
+          details={overtimeDetails}
+          detailsLabel="ดูแยกตามประเภท"
         />
         <Metric
           label="พนักงานในระบบ"
