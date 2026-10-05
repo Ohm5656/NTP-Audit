@@ -598,6 +598,14 @@ select {
   border-bottom: 0;
   padding-bottom: 0;
 }
+.metric-details-list .metric-details-total {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #cfe0d3;
+  border-bottom: 0;
+  color: #294738;
+  font-weight: 600;
+}
 .metric-details-list strong {
   color: #294738;
   font-variant-numeric: tabular-nums;

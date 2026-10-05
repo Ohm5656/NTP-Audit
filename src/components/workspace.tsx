@@ -189,6 +189,7 @@ function Metric({
   primary = false,
   details,
   detailsLabel = "ดูรายละเอียด",
+  detailsTotal,
 }: {
   label: string;
   value: string;
@@ -196,6 +197,7 @@ function Metric({
   primary?: boolean;
   details?: { label: string; value: number }[];
   detailsLabel?: string;
+  detailsTotal?: { label: string; value: number };
 }) {
   return (
     <div className={`metric ${primary ? "metric-primary" : ""}`}>
@@ -215,6 +217,12 @@ function Metric({
                 <strong>฿{money(item.value)}</strong>
               </div>
             ))}
+            {detailsTotal && (
+              <div className="metric-details-total">
+                <span>{detailsTotal.label}</span>
+                <strong>฿{money(detailsTotal.value)}</strong>
+              </div>
+            )}
           </div>
         </details>
       )}
@@ -542,6 +550,32 @@ function Dashboard({
       value: totalForItem(item.code),
     }))
     .filter((item) => item.value > 0);
+  const overtimeCodes = new Set(["ot_15", "holiday_work", "ot_3", "ot_2"]);
+  const otherIncomeDetails = itemTypes
+    .filter(
+      (item) =>
+        item.kind === "income" &&
+        item.active &&
+        item.code !== "salary" &&
+        !overtimeCodes.has(item.code),
+    )
+    .map((item) => ({ label: item.label, value: totalForItem(item.code) }))
+    .filter((item) => item.value > 0)
+    .sort((a, b) => a.label.localeCompare(b.label, "th"));
+  const payrollExtraDetails = [
+    ...overtimeDetails.map((item) => ({
+      label: `OT · ${item.label}`,
+      value: item.value,
+    })),
+    ...otherIncomeDetails.map((item) => ({
+      label: `รายรับอื่น · ${item.label}`,
+      value: item.value,
+    })),
+  ];
+  const payrollExtrasTotal = payrollExtraDetails.reduce(
+    (sum, item) => sum + item.value,
+    0,
+  );
   const deductionOrder = [
     "housing_utilities",
     "social_security",
@@ -643,16 +677,22 @@ function Dashboard({
         <Metric
           label="เงินสุทธิที่จ่าย"
           value={coverage ? `฿${money(annualTotal("net"), 0)}` : "—"}
-          hint="หลังหักรายการทั้งหมด"
+          hint={
+            coverage
+              ? `หลังหักรายการทั้งหมด · หักรวม ฿${money(annualTotal("deductions"), 0)}`
+              : "หลังหักรายการทั้งหมด"
+          }
           details={deductionDetails}
           detailsLabel="ดูรายละเอียดรายการหัก"
+          detailsTotal={{ label: "รวมรายการหัก", value: annualTotal("deductions") }}
         />
         <Metric
-          label="ค่าล่วงเวลา"
-          value={coverage ? `฿${money(annualTotal("ot"), 0)}` : "—"}
+          label="ค่าล่วงเวลาและรายรับอื่น"
+          value={coverage ? `฿${money(payrollExtrasTotal, 0)}` : "—"}
           hint={`สะสม ${coverage} เดือน`}
-          details={overtimeDetails}
+          details={payrollExtraDetails}
           detailsLabel="ดูแยกตามประเภท"
+          detailsTotal={{ label: "รวมค่าล่วงเวลาและรายรับอื่น", value: payrollExtrasTotal }}
         />
         <Metric
           label="พนักงานในระบบ"
