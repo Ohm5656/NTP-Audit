@@ -1069,6 +1069,87 @@ select {
   font-weight: 600;
   font-size: 12px;
 }
+.batch-file-list {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: auto;
+  max-height: 210px;
+}
+.batch-file-list > div {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 11px;
+  border-bottom: 1px solid var(--line);
+}
+.batch-file-list > div:last-child {
+  border-bottom: 0;
+}
+.batch-file-list svg {
+  color: var(--green);
+  flex: 0 0 auto;
+}
+.batch-file-list span {
+  min-width: 0;
+  flex: 1;
+}
+.batch-file-list strong,
+.batch-file-list small {
+  display: block;
+}
+.batch-file-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.batch-file-list small {
+  color: #849487;
+  font-size: 11px;
+}
+.batch-file-list button {
+  border: 0;
+  background: transparent;
+  color: #a85f50;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.batch-queue {
+  margin: 17px 0;
+  padding: 13px 15px;
+  border: 1px solid #dceadf;
+  border-radius: 7px;
+  background: #f8fcf8;
+}
+.batch-queue > div > strong,
+.batch-queue > div > span {
+  display: block;
+}
+.batch-queue > div > strong {
+  font-size: 13px;
+  color: var(--ink);
+}
+.batch-queue > div > span {
+  margin-top: 2px;
+  color: #718577;
+  font-size: 11px;
+}
+.batch-queue ol {
+  margin: 10px 0 0;
+  padding-left: 22px;
+  color: #667c6d;
+  font-size: 12px;
+}
+.batch-queue li {
+  margin: 3px 0;
+}
+.batch-queue li.current {
+  color: var(--green);
+  font-weight: 700;
+}
 .hint-box,
 .warning-box {
   background: #f6f9f6;

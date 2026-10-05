@@ -91,9 +91,15 @@ export type ImportResult = {
   deductions: number;
   net: number;
 };
+export type StageFailure = {
+  filename: string;
+  message: string;
+};
 
 type Wizard = {
   stage: Stage | null;
+  queue: Stage[];
+  stageFailures: StageFailure[];
   selectedSheet: string;
   setSelectedSheet: (value: string) => void;
   mappings: Record<string, MappingChoice>;
@@ -106,12 +112,14 @@ type Wizard = {
   error: string;
   clearError: () => void;
   stageFile: (file: File) => Promise<Stage>;
+  stageFiles: (files: File[]) => Promise<Stage[]>;
   loadPreview: (input?: {
     sheet?: string;
     mappings?: Record<string, MappingChoice>;
     employees?: Record<string, EmployeeChoice>;
   }) => Promise<Preview>;
   confirm: (replace: boolean) => Promise<ImportResult>;
+  advanceQueue: () => Stage | null;
   reset: () => void;
 };
 const Context = createContext<Wizard | null>(null);
@@ -126,6 +134,8 @@ async function requestJson(url: string, init: RequestInit) {
 export function ImportWizardProvider({ children }: { children: ReactNode }) {
   const { refresh } = usePayrollData();
   const [stage, setStage] = useState<Stage | null>(null);
+  const [queue, setQueue] = useState<Stage[]>([]);
+  const [stageFailures, setStageFailures] = useState<StageFailure[]>([]);
   const [selectedSheet, setSelectedSheet] = useState("");
   const [mappings, setMappings] = useState<Record<string, MappingChoice>>({});
   const [employeeChoices, setEmployeeChoices] = useState<
@@ -143,6 +153,7 @@ export function ImportWizardProvider({ children }: { children: ReactNode }) {
       );
       if (saved) {
         setStage(saved.stage || null);
+        setQueue(saved.queue || (saved.stage ? [saved.stage] : []));
         setSelectedSheet(saved.selectedSheet || "");
         setMappings(saved.mappings || {});
         setEmployeeChoices(saved.employeeChoices || {});
@@ -159,30 +170,67 @@ export function ImportWizardProvider({ children }: { children: ReactNode }) {
         "ntp-import-wizard",
         JSON.stringify({
           stage,
+          queue,
           selectedSheet,
           mappings,
           employeeChoices,
           result,
         }),
       );
-  }, [hydrated, stage, selectedSheet, mappings, employeeChoices, result]);
-  const stageFile = async (file: File) => {
+  }, [hydrated, stage, queue, selectedSheet, mappings, employeeChoices, result]);
+  const uploadFile = async (file: File) => {
+    const form = new FormData();
+    form.set("file", file);
+    return (await requestJson("/api/import/stage", {
+      method: "POST",
+      body: form,
+    })) as Stage;
+  };
+  const stageFiles = async (files: File[]) => {
     setBusy(true);
     setError("");
+    setStageFailures([]);
     try {
-      const form = new FormData();
-      form.set("file", file);
-      const value = (await requestJson("/api/import/stage", {
-        method: "POST",
-        body: form,
-      })) as Stage;
-      setStage(value);
-      setSelectedSheet(value.suggestedSheet);
+      const results: (Stage | StageFailure)[] = new Array(files.length);
+      let nextIndex = 0;
+      const worker = async () => {
+        while (nextIndex < files.length) {
+          const index = nextIndex++;
+          const file = files[index];
+          try {
+            results[index] = await uploadFile(file);
+          } catch (cause) {
+            results[index] = {
+              filename: file.name,
+              message:
+                cause instanceof Error ? cause.message : "อัปโหลดไม่สำเร็จ",
+            };
+          }
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(3, files.length) }, () => worker()),
+      );
+      const ready = results.filter(
+        (result): result is Stage => "uploadId" in result,
+      );
+      const failed = results.filter(
+        (result): result is StageFailure => "filename" in result,
+      );
+      if (!ready.length) {
+        const message = failed[0]?.message || "อัปโหลดไฟล์ไม่สำเร็จ";
+        setError(message);
+        throw new Error(message);
+      }
+      setStage(ready[0]);
+      setQueue(ready);
+      setStageFailures(failed);
+      setSelectedSheet(ready[0].suggestedSheet);
       setMappings({});
       setEmployeeChoices({});
       setPreview(null);
       setResult(null);
-      return value;
+      return ready;
     } catch (cause) {
       const message =
         cause instanceof Error ? cause.message : "อัปโหลดไม่สำเร็จ";
@@ -192,6 +240,7 @@ export function ImportWizardProvider({ children }: { children: ReactNode }) {
       setBusy(false);
     }
   };
+  const stageFile = async (file: File) => (await stageFiles([file]))[0];
   const loadPreview = async (input?: {
     sheet?: string;
     mappings?: Record<string, MappingChoice>;
@@ -252,6 +301,8 @@ export function ImportWizardProvider({ children }: { children: ReactNode }) {
   };
   const reset = () => {
     setStage(null);
+    setQueue([]);
+    setStageFailures([]);
     setSelectedSheet("");
     setMappings({});
     setEmployeeChoices({});
@@ -260,10 +311,29 @@ export function ImportWizardProvider({ children }: { children: ReactNode }) {
     setError("");
     sessionStorage.removeItem("ntp-import-wizard");
   };
+  const advanceQueue = () => {
+    const currentIndex = queue.findIndex(
+      (item) => item.uploadId === stage?.uploadId,
+    );
+    const next = currentIndex >= 0 ? queue[currentIndex + 1] : null;
+    if (!next) return null;
+    const remaining = queue.slice(currentIndex + 1);
+    setStage(next);
+    setQueue(remaining);
+    setSelectedSheet(next.suggestedSheet);
+    setMappings({});
+    setEmployeeChoices({});
+    setPreview(null);
+    setResult(null);
+    setError("");
+    return next;
+  };
   return (
     <Context.Provider
       value={{
         stage,
+        queue,
+        stageFailures,
         selectedSheet,
         setSelectedSheet,
         mappings,
@@ -276,8 +346,10 @@ export function ImportWizardProvider({ children }: { children: ReactNode }) {
         error,
         clearError: () => setError(""),
         stageFile,
+        stageFiles,
         loadPreview,
         confirm,
+        advanceQueue,
         reset,
       }}
     >

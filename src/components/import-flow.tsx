@@ -97,10 +97,31 @@ function NeedFile() {
 export function ImportUpload() {
   const router = useRouter();
   const wizard = useImportWizard();
-  const [file, setFile] = useState<File | null>(null);
-  const choose = (picked?: File | null) => {
-    if (picked && picked.name.toLowerCase().endsWith(".xlsx")) setFile(picked);
+  const [files, setFiles] = useState<File[]>([]);
+  const [selectionError, setSelectionError] = useState("");
+  const choose = (picked: FileList | File[]) => {
+    const accepted = Array.from(picked).filter(
+      (file) => file.name.toLowerCase().endsWith(".xlsx"),
+    );
+    const combined = [...files, ...accepted].filter(
+      (file, index, values) =>
+        values.findIndex(
+          (candidate) =>
+            candidate.name === file.name &&
+            candidate.size === file.size &&
+            candidate.lastModified === file.lastModified,
+        ) === index,
+    );
+    if (combined.length > 24) {
+      setSelectionError("เลือกได้สูงสุด 24 ไฟล์ต่อครั้ง");
+      setFiles(combined.slice(0, 24));
+      return;
+    }
+    setSelectionError("");
+    setFiles(combined);
   };
+  const removeFile = (index: number) =>
+    setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index));
   return (
     <Frame
       step={0}
@@ -117,25 +138,49 @@ export function ImportUpload() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            choose(e.dataTransfer.files[0]);
+            choose(e.dataTransfer.files);
           }}
         >
           <span className="upload-icon">
             <FileSpreadsheet size={25} strokeWidth={1.7} />
           </span>
-          <strong>{file?.name || "ลากไฟล์ Excel มาวางที่นี่"}</strong>
+          <strong>
+            {files.length
+              ? `เลือกแล้ว ${files.length} ไฟล์`
+              : "ลากไฟล์ Excel มาวางที่นี่"}
+          </strong>
           <span>
-            {file
-              ? `${(file.size / 1024).toFixed(0)} KB · พร้อมอัปโหลด`
-              : "หรือคลิกเพื่อเลือกไฟล์จากเครื่อง"}
+            {files.length
+              ? "ระบบจะอ่านไฟล์พร้อมกันสูงสุด 3 ไฟล์ และเรียงเป็นคิวให้ตรวจสอบ"
+              : "เลือกได้หลายไฟล์ หรือคลิกเพื่อเลือกไฟล์จากเครื่อง"}
           </span>
-          <span className="dropzone-button">เลือกไฟล์ .xlsx</span>
+          <span className="dropzone-button">เลือกไฟล์ .xlsx หลายไฟล์</span>
           <input
             type="file"
             accept=".xlsx"
-            onChange={(e) => choose(e.target.files?.[0])}
+            multiple
+            onChange={(e) => {
+              if (e.target.files) choose(e.target.files);
+              e.currentTarget.value = "";
+            }}
           />
         </label>
+        {files.length > 0 && (
+          <div className="batch-file-list" aria-label="ไฟล์ที่เลือก">
+            {files.map((file, index) => (
+              <div key={`${file.name}-${file.lastModified}-${file.size}`}>
+                <FileSpreadsheet size={16} />
+                <span>
+                  <strong>{file.name}</strong>
+                  <small>{(file.size / 1024).toFixed(0)} KB</small>
+                </span>
+                <button type="button" onClick={() => removeFile(index)}>
+                  ลบ
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="hint-box">
           <CircleAlert size={18} />
           <p>
@@ -143,25 +188,27 @@ export function ImportUpload() {
             และจะยังไม่บันทึกยอดเงินเดือนจนกว่าคุณจะตรวจสอบและยืนยัน
           </p>
         </div>
-        <ErrorBox message={wizard.error} />
+        <ErrorBox message={selectionError || wizard.error} />
         <div className="panel-actions">
           <Link href="/" className="button button-secondary">
             ยกเลิก
           </Link>
           <button
             className="button button-primary"
-            disabled={!file || wizard.busy}
+            disabled={!files.length || wizard.busy}
             onClick={async () => {
-              if (!file) return;
+              if (!files.length) return;
               try {
-                await wizard.stageFile(file);
+                await wizard.stageFiles(files);
                 router.push("/import/preview");
               } catch {
                 /* Error shown above. */
               }
             }}
           >
-            {wizard.busy ? "กำลังอ่านไฟล์..." : "อ่านไฟล์และไปต่อ"}
+            {wizard.busy
+              ? "กำลังอ่านไฟล์เข้าคิว..."
+              : `อ่าน ${files.length || ""} ไฟล์และไปต่อ`}
             <ArrowRight size={17} />
           </button>
         </div>
@@ -200,6 +247,33 @@ export function ImportPreview() {
             {wizard.stage.sheets.length} ชีตที่อาจเป็นข้อมูลเงินเดือน
           </p>
         </div>
+        {wizard.queue.length > 1 && (
+          <div className="batch-queue">
+            <div>
+              <strong>คิวนำเข้าเหลือ {wizard.queue.length} ไฟล์</strong>
+              <span>ตรวจสอบและยืนยันทีละงวด เพื่อป้องกันการแทนที่ข้อมูลผิดเดือน</span>
+            </div>
+            <ol>
+              {wizard.queue.slice(0, 5).map((item, index) => (
+                <li key={item.uploadId} className={index === 0 ? "current" : ""}>
+                  {item.originalFilename}
+                </li>
+              ))}
+              {wizard.queue.length > 5 && <li>และอีก {wizard.queue.length - 5} ไฟล์</li>}
+            </ol>
+          </div>
+        )}
+        {wizard.stageFailures.length > 0 && (
+          <div className="warning-box">
+            <CircleAlert size={18} />
+            <div>
+              <strong>มี {wizard.stageFailures.length} ไฟล์ที่ยังไม่เข้าในคิว</strong>
+              {wizard.stageFailures.map((failure) => (
+                <p key={failure.filename}>{failure.filename}: {failure.message}</p>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="detected-grid">
           <div>
             <span>งวดเดือน</span>
@@ -734,6 +808,7 @@ export function ImportValidation() {
 }
 
 export function ImportComplete() {
+  const router = useRouter();
   const wizard = useImportWizard();
   const result = wizard.result;
   if (!result)
@@ -791,12 +866,18 @@ export function ImportComplete() {
           <button
             className="button button-secondary"
             onClick={() => {
+              if (wizard.advanceQueue()) {
+                router.push("/import/preview");
+                return;
+              }
               wizard.reset();
-              window.location.href = "/import";
+              router.push("/import");
             }}
           >
             <Plus size={16} />
-            นำเข้าเดือนถัดไป
+            {wizard.queue.length > 1
+              ? `ตรวจไฟล์ถัดไป (${wizard.queue.length - 1})`
+              : "นำเข้าเดือนถัดไป"}
           </button>
         </div>
       </div>
