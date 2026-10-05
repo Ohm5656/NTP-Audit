@@ -48,7 +48,7 @@ import {
 } from "@/components/import-flow";
 import { toSatang } from "@/lib/money";
 import type { AppUser } from "@/lib/auth";
-import { EmployeeAnnualTable, MonthlyMonthFolders, MonthlyPayrollTable, MonthlyYearFolders } from "@/components/payroll-navigation";
+import { EmployeeAnnualTable, EmployeeAnnualYearFolders, MonthlyMonthFolders, MonthlyPayrollTable, MonthlyYearFolders } from "@/components/payroll-navigation";
 import { HistoricalImport } from "@/components/historical-import";
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
@@ -300,10 +300,12 @@ export default function Workspace({ user }: { user?: AppUser }) {
     content = <LiveImportValidation />;
   else if (pathname === "/import/complete") content = <LiveImportComplete />;
   else if (pathname === "/reports/employee")
-    content = <EmployeesPage search={search} setSearch={setSearch} />;
+    content = <EmployeeAnnualYearFolders />;
   else if (pathname === "/reports/company") content = <Dashboard year={year} setYear={setYear} />;
   else if (pathname === "/employees")
-    content = <EmployeesPage search={search} setSearch={setSearch} />;
+    content = <EmployeeAnnualYearFolders />;
+  else if (/^\/employees\/\d{4}$/.test(pathname))
+    content = <EmployeesPage search={search} setSearch={setSearch} selectedAnnualYear={Number(pathname.split("/")[2]) - 543} />;
   else if (pathname.startsWith("/employees/"))
     content = <EmployeeProfile id={pathname.split("/")[2]} selectedAnnualYear={Number(pathname.split("/")[3]) - 543} />;
   else if (pathname === "/leave") content = <LeavePage />;
@@ -427,8 +429,9 @@ function pageLabel(path: string) {
   if (path.startsWith("/import")) return "นำเข้าข้อมูล";
   if (path.startsWith("/reports/company")) return "รายงานบริษัท";
   if (path.startsWith("/reports")) return "รายงานรายปี";
+  if (/^\/employees\/\d{4}$/.test(path)) return "รายได้พนักงานรายปี";
   if (path.startsWith("/employees/")) return "ข้อมูลพนักงาน";
-  if (path.startsWith("/employees")) return "พนักงาน";
+  if (path.startsWith("/employees")) return "รายได้พนักงานรายปี";
   if (path === "/leave") return "วันลา";
   if (path === "/salary") return "ปรับเงินเดือน";
   if (path === "/imports") return "ประวัตินำเข้า";
@@ -1060,15 +1063,19 @@ function MonthDetail({
 function EmployeesPage({
   search,
   setSearch,
+  selectedAnnualYear,
 }: {
   search: string;
   setSearch: (value: string) => void;
+  selectedAnnualYear: number;
 }) {
   const { employees, entries, refresh, user } = usePayrollData();
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [formError, setFormError] = useState("");
-  const filtered = employees.filter(
+  const annualEmployeeIds = new Set(entries.filter((entry) => entry.year === selectedAnnualYear).map((entry) => entry.employeeDbId));
+  const annualEmployees = employees.filter((employee) => annualEmployeeIds.has(employee.dbId));
+  const filtered = annualEmployees.filter(
     (employee) =>
       (filter === "all" || employee.type === filter) &&
       (employee.name.includes(search) ||
@@ -1078,9 +1085,10 @@ function EmployeesPage({
   return (
     <>
       <PageHeading
-        title="พนักงาน"
-        description="ข้อมูลบุคลากรและประวัติเงินเดือน"
+        title={`รายได้พนักงาน ปี ${selectedAnnualYear + 543}`}
+        description="เลือกรายชื่อพนักงานเพื่อดูรายได้รายปี"
       />
+      <div className="backline"><Link href="/employees"><ArrowLeft size={16} />รายได้พนักงานรายปี</Link></div>
       <div className="toolbar">
         <div className="search-box">
           <Search size={17} />
@@ -1121,7 +1129,7 @@ function EmployeesPage({
                 <td className="mono-cell">{employee.id}</td>
                 <td>
                   <Link
-                    href={`/employees/${employee.id}`}
+                    href={`/employees/${employee.id}/${selectedAnnualYear + 543}`}
                     className="table-primary-link"
                   >
                     {employee.name}
@@ -1142,7 +1150,7 @@ function EmployeesPage({
                         : "ไม่ปฏิบัติงาน"}
                   </Status>
                 </td>
-                <td className="row-arrow"><Link href={`/employees/${employee.id}`} aria-label={`Open ${employee.name}`} className="row-arrow-link"><ChevronRight size={16} /></Link></td>
+                <td className="row-arrow"><Link href={`/employees/${employee.id}/${selectedAnnualYear + 543}`} aria-label={`Open ${employee.name}`} className="row-arrow-link"><ChevronRight size={16} /></Link></td>
               </tr>
             ))}
           </tbody>

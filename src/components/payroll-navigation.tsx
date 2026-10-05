@@ -19,6 +19,38 @@ export function MonthlyYearFolders() {
   return <><div className="page-heading"><div><h1>ข้อมูลรายเดือน</h1><p>เลือกปีจากงวดที่นำเข้าแล้ว</p></div><div className="heading-actions"><Link href="/import" className="button button-primary"><Plus size={17} />นำเข้า Excel</Link></div></div>{years.length === 0 ? <div className="guide-card"><h2>ยังไม่มีข้อมูลงวดเงินเดือน</h2><p>นำเข้า Excel รายเดือน แล้วระบบจะสร้างปีและเดือนจากข้อมูลจริงโดยอัตโนมัติ</p><Link href="/import" className="button button-primary">นำเข้า Excel</Link></div> : <div className="year-folder-grid">{years.map((year) => { const monthCount = periods.filter((period) => period.year === year && period.activeImportId).length; return <Link href={`/monthly/${year + 543}`} className="year-folder" key={year}><span className="year-folder-icon"><Folder size={28} /></span><span><strong>{year + 543}</strong><small>{monthCount} เดือนที่นำเข้าแล้ว</small></span><ChevronRight size={19} /></Link>; })}</div>}</>;
 }
 
+export function EmployeeAnnualYearFolders() {
+  const { entries, employees } = usePayrollData();
+  const years = Array.from(new Set(entries.map((entry) => entry.year))).sort((a, b) => b - a);
+
+  return <>
+    <div className="page-heading">
+      <div>
+        <h1>รายได้พนักงานรายปี</h1>
+        <p>เลือกปีจาก Payroll ที่นำเข้าแล้ว</p>
+      </div>
+    </div>
+    {years.length === 0 ? <div className="guide-card">
+      <h2>ยังไม่มีข้อมูลรายได้รายปี</h2>
+      <p>นำเข้า Excel รายเดือนแล้วระบบจะสร้างรายได้รายปีแยกตามปีให้อัตโนมัติ</p>
+      <Link href="/import" className="button button-primary">นำเข้า Excel</Link>
+    </div> : <div className="year-folder-grid">
+      {years.map((year) => {
+        const yearEntries = entries.filter((entry) => entry.year === year);
+        const employeeCount = new Set(yearEntries.map((entry) => entry.employeeDbId)).size;
+        const monthCount = new Set(yearEntries.map((entry) => entry.month)).size;
+        const knownEmployees = employees.filter((employee) => yearEntries.some((entry) => entry.employeeDbId === employee.dbId)).length;
+        const count = knownEmployees || employeeCount;
+        return <Link href={`/employees/${year + 543}`} className="year-folder" key={year}>
+          <span className="year-folder-icon"><Folder size={28} /></span>
+          <span><strong>{year + 543}</strong><small>{count} คน · {monthCount} เดือนที่นำเข้าแล้ว</small></span>
+          <ChevronRight size={19} />
+        </Link>;
+      })}
+    </div>}
+  </>;
+}
+
 export function MonthlyMonthFolders({ year }: { year: number }) {
   const { periods, entries } = usePayrollData(); const beYear = year + 543;
   const imported = new Map(periods.filter((period) => period.year === year && period.activeImportId).map((period) => [period.month, period]));
