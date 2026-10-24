@@ -1,0 +1,20 @@
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: "15 1 * * *"
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Query Supabase through the production app
+        env:
+          HEALTHCHECK_TOKEN: ${{ secrets.HEALTHCHECK_TOKEN }}
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: >-
+          curl --fail --silent --show-error --retry 2 --max-time 20
+          -H "Authorization: Bearer ${HEALTHCHECK_TOKEN}"
+          "${HEALTHCHECK_URL}/api/health/supabase"
